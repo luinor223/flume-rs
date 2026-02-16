@@ -1,0 +1,21 @@
+# Build
+/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+
+# Docs - numbered files
+docs/[0-9]*.md
+*.pdf
+CLAUDE.md
