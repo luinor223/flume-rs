@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::FlumeResult;
 

@@ -1,0 +1,11 @@
+[package]
+name = "flume-state"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+bincode = "1"
+flume-core = { path = "../flume-core" }
+serde = { version = "1", features = ["derive"] }

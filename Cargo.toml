@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/flume-core", "crates/flume-runtime", "crates/flume-api"]
+members = ["crates/flume-core", "crates/flume-runtime", "crates/flume-api", "crates/flume-state"]
 
 [workspace.package]
 edition = "2024"
