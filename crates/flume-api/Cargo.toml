@@ -6,6 +6,6 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-flume-core = { path = "../flume-core" }
-flume-runtime = { path = "../flume-runtime" }
+flume-core = { path = "../flume-core", version = "0.1.0" }
+flume-runtime = { path = "../flume-runtime", version = "0.1.0" }
 tokio = { version = "1", features = ["sync", "rt", "macros"] }

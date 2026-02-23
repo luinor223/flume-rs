@@ -130,7 +130,9 @@ mod tests {
         drop(input_tx);
 
         let elem = output_rx.recv().await.unwrap();
-        assert!(matches!(elem, StreamElement::Watermark(wm) if wm.timestamp == EventTimestamp::new(500)));
+        assert!(
+            matches!(elem, StreamElement::Watermark(wm) if wm.timestamp == EventTimestamp::new(500))
+        );
 
         handle.await.unwrap().unwrap();
     }

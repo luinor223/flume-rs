@@ -78,9 +78,7 @@ mod tests {
     async fn test_task_error_propagates() {
         let mut scheduler = Scheduler::new();
         scheduler.spawn("ok", async { Ok(()) });
-        scheduler.spawn("fail", async {
-            Err(FlumeError::Execution("boom".into()))
-        });
+        scheduler.spawn("fail", async { Err(FlumeError::Execution("boom".into())) });
 
         let result = scheduler.wait_all().await;
         assert!(result.is_err());

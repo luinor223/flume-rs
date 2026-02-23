@@ -56,7 +56,12 @@ impl LogicalGraph {
     }
 
     /// Add a node and return its ID.
-    pub fn add_node(&mut self, name: impl Into<String>, kind: NodeKind, parallelism: usize) -> NodeId {
+    pub fn add_node(
+        &mut self,
+        name: impl Into<String>,
+        kind: NodeKind,
+        parallelism: usize,
+    ) -> NodeId {
         let id = self.nodes.len();
         self.nodes.push(LogicalNode {
             id,

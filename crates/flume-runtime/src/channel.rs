@@ -19,7 +19,9 @@ impl<T: Send + 'static> ChannelCollector<T> {
     }
 
     fn try_send(&self, element: StreamElement<T>) -> FlumeResult<()> {
-        self.tx.try_send(element).map_err(|_| FlumeError::ChannelClosed)
+        self.tx
+            .try_send(element)
+            .map_err(|_| FlumeError::ChannelClosed)
     }
 }
 

@@ -21,7 +21,10 @@ impl PrintSink {
 }
 
 impl<T: Debug + Send + 'static> Sink<T> for PrintSink {
-    fn write(&mut self, record: Record<T>) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
+    fn write(
+        &mut self,
+        record: Record<T>,
+    ) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
         println!("[{}] {:?}", self.prefix, record.value);
         Box::pin(async { Ok(()) })
     }
@@ -34,7 +37,10 @@ impl<T: Debug + Send + 'static> Sink<T> for PrintSink {
         Box::pin(async { Ok(Vec::new()) })
     }
 
-    fn restore(&mut self, _state: Vec<u8>) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
+    fn restore(
+        &mut self,
+        _state: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
         Box::pin(async { Ok(()) })
     }
 }
@@ -56,7 +62,10 @@ impl<T> CollectSink<T> {
 }
 
 impl<T: Send + 'static> Sink<T> for CollectSink<T> {
-    fn write(&mut self, record: Record<T>) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
+    fn write(
+        &mut self,
+        record: Record<T>,
+    ) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
         self.results.lock().unwrap().push(record.value);
         Box::pin(async { Ok(()) })
     }
@@ -69,7 +78,10 @@ impl<T: Send + 'static> Sink<T> for CollectSink<T> {
         Box::pin(async { Ok(Vec::new()) })
     }
 
-    fn restore(&mut self, _state: Vec<u8>) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
+    fn restore(
+        &mut self,
+        _state: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
         Box::pin(async { Ok(()) })
     }
 }

@@ -73,17 +73,11 @@ mod tests {
 
         // Input 1 advances to 100 → min is 100
         let result = tracker.update(1, Watermark::new(EventTimestamp::new(100)));
-        assert_eq!(
-            result.unwrap().timestamp,
-            EventTimestamp::new(100)
-        );
+        assert_eq!(result.unwrap().timestamp, EventTimestamp::new(100));
 
         // Input 1 advances to 300 → min is now 200
         let result = tracker.update(1, Watermark::new(EventTimestamp::new(300)));
-        assert_eq!(
-            result.unwrap().timestamp,
-            EventTimestamp::new(200)
-        );
+        assert_eq!(result.unwrap().timestamp, EventTimestamp::new(200));
     }
 
     #[test]

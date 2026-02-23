@@ -64,11 +64,7 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
 
     /// Apply an operator transformation, spawning a TaskExecutor and returning
     /// a new DataStream over the output type.
-    fn apply_operator<Out, Op>(
-        mut self,
-        name: &str,
-        operator: Op,
-    ) -> DataStream<'env, Out>
+    fn apply_operator<Out, Op>(mut self, name: &str, operator: Op) -> DataStream<'env, Out>
     where
         Out: Send + 'static,
         Op: Operator<T, Out> + 'static,

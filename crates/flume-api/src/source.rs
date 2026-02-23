@@ -29,10 +29,15 @@ fn now_millis() -> EventTimestamp {
 }
 
 impl<T: Send + 'static> Source<T> for InMemorySource<T> {
-    fn next(&mut self) -> Pin<Box<dyn Future<Output = FlumeResult<Option<StreamElement<T>>>> + Send + '_>> {
+    fn next(
+        &mut self,
+    ) -> Pin<Box<dyn Future<Output = FlumeResult<Option<StreamElement<T>>>> + Send + '_>> {
         Box::pin(async {
             match self.items.next() {
-                Some(value) => Ok(Some(StreamElement::Record(Record::new(value, now_millis())))),
+                Some(value) => Ok(Some(StreamElement::Record(Record::new(
+                    value,
+                    now_millis(),
+                )))),
                 None => Ok(None),
             }
         })
@@ -42,7 +47,10 @@ impl<T: Send + 'static> Source<T> for InMemorySource<T> {
         Box::pin(async { Ok(Vec::new()) })
     }
 
-    fn restore(&mut self, _state: Vec<u8>) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
+    fn restore(
+        &mut self,
+        _state: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
         Box::pin(async { Ok(()) })
     }
 }

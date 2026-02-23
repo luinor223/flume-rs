@@ -48,22 +48,12 @@ impl StreamExecutionEnvironment {
     }
 
     /// Add an edge to the logical graph.
-    pub(crate) fn add_edge(
-        &mut self,
-        from: usize,
-        to: usize,
-        strategy: PartitionStrategy,
-    ) {
+    pub(crate) fn add_edge(&mut self, from: usize, to: usize, strategy: PartitionStrategy) {
         self.graph.add_edge(from, to, strategy);
     }
 
     /// Add a node to the logical graph.
-    pub(crate) fn add_node(
-        &mut self,
-        name: &str,
-        kind: NodeKind,
-        parallelism: usize,
-    ) -> usize {
+    pub(crate) fn add_node(&mut self, name: &str, kind: NodeKind, parallelism: usize) -> usize {
         self.graph.add_node(name, kind, parallelism)
     }
 }
