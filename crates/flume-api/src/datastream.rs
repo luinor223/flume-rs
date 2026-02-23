@@ -2,7 +2,7 @@
 
 use flume_core::{
     CheckpointBarrier, Collector, FilterOperator, FlatMapOperator, FlumeError, FlumeResult,
-    MapOperator, Operator, Record, Sink, Source, StreamElement, Watermark,
+    MapOperator, Operator, Record, Sink, Source, StreamElement, Watermark, WindowAssigner,
 };
 use flume_runtime::channel::operator_channel;
 use flume_runtime::dag::{NodeKind, PartitionStrategy};
@@ -10,6 +10,7 @@ use flume_runtime::task::TaskExecutor;
 use tokio::sync::mpsc;
 
 use crate::environment::StreamExecutionEnvironment;
+use crate::windowed::WindowedStream;
 
 /// Internal representation of a DataStream's upstream input.
 pub(crate) enum SourceOrChannel<T: Send + 'static> {
@@ -64,7 +65,11 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
 
     /// Apply an operator transformation, spawning a TaskExecutor and returning
     /// a new DataStream over the output type.
-    fn apply_operator<Out, Op>(mut self, name: &str, operator: Op) -> DataStream<'env, Out>
+    pub(crate) fn apply_operator<Out, Op>(
+        mut self,
+        name: &str,
+        operator: Op,
+    ) -> DataStream<'env, Out>
     where
         Out: Send + 'static,
         Op: Operator<T, Out> + 'static,
@@ -127,6 +132,12 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         F: FnMut(&T) -> K + Send + 'static,
     {
         self.apply_operator("key_by", KeyByOperator::new(key_extractor))
+    }
+
+    /// Assign records to windows. Must be called after `key_by`.
+    /// Returns a [`WindowedStream`] on which you call `.aggregate()`.
+    pub fn window(self, assigner: impl WindowAssigner + 'static) -> WindowedStream<'env, T> {
+        WindowedStream::new(self, Box::new(assigner))
     }
 
     /// Terminal operation. Wires the stream to a sink and runs the pipeline.
@@ -222,6 +233,9 @@ where
 #[cfg(test)]
 mod tests {
     use crate::sink::CollectSink;
+    use crate::source::TimestampedSource;
+    use flume_core::{AggregateFunction, EventTimestamp, TumblingWindow};
+    use std::time::Duration;
 
     use super::*;
 
@@ -314,5 +328,49 @@ mod tests {
 
         let values = results.lock().unwrap();
         assert!(values.is_empty());
+    }
+
+    /// Sum aggregator for windowing test.
+    struct SumAgg;
+
+    impl AggregateFunction<i64, i64, i64> for SumAgg {
+        fn create_accumulator(&self) -> i64 {
+            0
+        }
+        fn add(&self, acc: &mut i64, value: &i64) {
+            *acc += value;
+        }
+        fn get_result(&self, acc: &i64) -> i64 {
+            *acc
+        }
+        fn merge(&self, a: &mut i64, b: i64) {
+            *a += b;
+        }
+    }
+
+    #[tokio::test]
+    async fn test_windowed_pipeline() {
+        let mut env = StreamExecutionEnvironment::new();
+        let (sink, results) = CollectSink::<i64>::new();
+
+        // Build elements: 3 records in window [0, 10_000), then a watermark to fire it.
+        let elements = vec![
+            StreamElement::Record(Record::new(10i64, EventTimestamp::new(1_000)).with_key(vec![1])),
+            StreamElement::Record(Record::new(20i64, EventTimestamp::new(5_000)).with_key(vec![1])),
+            StreamElement::Record(Record::new(30i64, EventTimestamp::new(8_000)).with_key(vec![1])),
+            StreamElement::Watermark(Watermark::new(EventTimestamp::new(10_000))),
+        ];
+
+        let source = TimestampedSource::new(elements);
+
+        env.from_source(source)
+            .window(TumblingWindow::new(Duration::from_secs(10)))
+            .aggregate(SumAgg)
+            .add_sink(sink)
+            .await
+            .unwrap();
+
+        let values = results.lock().unwrap();
+        assert_eq!(*values, vec![60]); // 10 + 20 + 30
     }
 }

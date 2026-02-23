@@ -9,12 +9,17 @@ mod operator;
 mod record;
 mod time;
 mod traits;
+mod window;
 
 pub use config::PipelineConfig;
 pub use error::{FlumeError, FlumeResult};
-pub use operator::{FilterOperator, FlatMapOperator, MapOperator};
+pub use operator::{FilterOperator, FlatMapOperator, MapOperator, WindowOperator};
 pub use record::{CheckpointBarrier, Record, StreamElement, Watermark};
 pub use time::EventTimestamp;
 pub use traits::{
     Collector, ListState, MapState, Operator, Sink, Source, StateBackend, ValueState,
+};
+pub use window::{
+    AggregateFunction, EventTimeTrigger, SlidingWindow, Trigger, TriggerResult, TumblingWindow,
+    Window, WindowAssigner,
 };

@@ -8,8 +8,10 @@ mod environment;
 pub mod functions;
 pub mod sink;
 pub mod source;
+mod windowed;
 
 pub use datastream::DataStream;
 pub use environment::StreamExecutionEnvironment;
 pub use sink::{CollectSink, PrintSink};
-pub use source::InMemorySource;
+pub use source::{InMemorySource, TimestampedSource};
+pub use windowed::WindowedStream;

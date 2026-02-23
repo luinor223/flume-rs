@@ -28,6 +28,39 @@ fn now_millis() -> EventTimestamp {
     EventTimestamp::new(millis)
 }
 
+/// Emits pre-built `StreamElement`s with explicit timestamps and watermarks.
+/// Useful for testing event-time windowing.
+pub struct TimestampedSource<T> {
+    elements: std::vec::IntoIter<StreamElement<T>>,
+}
+
+impl<T> TimestampedSource<T> {
+    pub fn new(elements: Vec<StreamElement<T>>) -> Self {
+        Self {
+            elements: elements.into_iter(),
+        }
+    }
+}
+
+impl<T: Send + 'static> Source<T> for TimestampedSource<T> {
+    fn next(
+        &mut self,
+    ) -> Pin<Box<dyn Future<Output = FlumeResult<Option<StreamElement<T>>>> + Send + '_>> {
+        Box::pin(async { Ok(self.elements.next()) })
+    }
+
+    fn snapshot(&self) -> Pin<Box<dyn Future<Output = FlumeResult<Vec<u8>>> + Send + '_>> {
+        Box::pin(async { Ok(Vec::new()) })
+    }
+
+    fn restore(
+        &mut self,
+        _state: Vec<u8>,
+    ) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
+        Box::pin(async { Ok(()) })
+    }
+}
+
 impl<T: Send + 'static> Source<T> for InMemorySource<T> {
     fn next(
         &mut self,
