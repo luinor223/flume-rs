@@ -1,0 +1,12 @@
+//! Single-node execution engine for flume-rs.
+//!
+//! Takes the logical graph built by `flume-api` and runs it as a set
+//! of concurrent tasks connected by bounded channels.
+
+pub mod channel;
+pub mod checkpoint;
+pub mod dag;
+pub mod partition;
+pub mod scheduler;
+pub mod task;
+pub mod watermark;
