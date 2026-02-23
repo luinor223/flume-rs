@@ -1,14 +1,8 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Core types and traits for the flume-rs stream processing engine.
+//!
+//! This crate has minimal dependencies and defines the vocabulary
+//! shared by every other crate in the workspace.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+mod time;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use time::EventTimestamp;
