@@ -188,16 +188,24 @@ mod tests {
         let mut aligner = BarrierAligner::new(vec![rx]);
 
         // Send a record
-        tx.send(StreamElement::Record(Record::new(42, EventTimestamp::new(100))))
-            .await
-            .unwrap();
+        tx.send(StreamElement::Record(Record::new(
+            42,
+            EventTimestamp::new(100),
+        )))
+        .await
+        .unwrap();
         let out = aligner.next().await.unwrap();
-        assert!(matches!(out, AlignerOutput::Element(StreamElement::Record(_))));
+        assert!(matches!(
+            out,
+            AlignerOutput::Element(StreamElement::Record(_))
+        ));
 
         // Send a watermark
-        tx.send(StreamElement::Watermark(Watermark::new(EventTimestamp::new(200))))
-            .await
-            .unwrap();
+        tx.send(StreamElement::Watermark(Watermark::new(
+            EventTimestamp::new(200),
+        )))
+        .await
+        .unwrap();
         let out = aligner.next().await.unwrap();
         assert!(matches!(
             out,
@@ -229,9 +237,12 @@ mod tests {
         let barrier = CheckpointBarrier::new(1, EventTimestamp::new(500));
 
         // Input 0 sends: record, barrier
-        tx0.send(StreamElement::Record(Record::new(10, EventTimestamp::new(100))))
-            .await
-            .unwrap();
+        tx0.send(StreamElement::Record(Record::new(
+            10,
+            EventTimestamp::new(100),
+        )))
+        .await
+        .unwrap();
         tx0.send(StreamElement::CheckpointBarrier(barrier))
             .await
             .unwrap();
@@ -244,9 +255,12 @@ mod tests {
         .unwrap();
 
         // Input 1 sends: record, record, barrier
-        tx1.send(StreamElement::Record(Record::new(20, EventTimestamp::new(100))))
-            .await
-            .unwrap();
+        tx1.send(StreamElement::Record(Record::new(
+            20,
+            EventTimestamp::new(100),
+        )))
+        .await
+        .unwrap();
         tx1.send(StreamElement::Record(Record::new(
             21,
             EventTimestamp::new(200),
@@ -304,12 +318,20 @@ mod tests {
         let b2 = CheckpointBarrier::new(2, EventTimestamp::new(200));
 
         // First checkpoint
-        tx0.send(StreamElement::CheckpointBarrier(b1)).await.unwrap();
-        tx1.send(StreamElement::CheckpointBarrier(b1)).await.unwrap();
+        tx0.send(StreamElement::CheckpointBarrier(b1))
+            .await
+            .unwrap();
+        tx1.send(StreamElement::CheckpointBarrier(b1))
+            .await
+            .unwrap();
 
         // Second checkpoint
-        tx0.send(StreamElement::CheckpointBarrier(b2)).await.unwrap();
-        tx1.send(StreamElement::CheckpointBarrier(b2)).await.unwrap();
+        tx0.send(StreamElement::CheckpointBarrier(b2))
+            .await
+            .unwrap();
+        tx1.send(StreamElement::CheckpointBarrier(b2))
+            .await
+            .unwrap();
 
         // Should see barrier 1 first, then barrier 2
         let out1 = aligner.next().await.unwrap();

@@ -74,13 +74,12 @@ impl SnapshotStore {
         while let Some(entry) = entries.next_entry().await.map_err(FlumeError::Io)? {
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            if let Some(id_str) = name.strip_prefix("cp-") {
-                if let Ok(id) = id_str.parse::<u64>() {
-                    // Only count committed checkpoints
-                    let marker = entry.path().join("_complete");
-                    if tokio::fs::metadata(&marker).await.is_ok() {
-                        best = Some(best.map_or(id, |b: u64| b.max(id)));
-                    }
+            if let Some(id_str) = name.strip_prefix("cp-")
+                && let Ok(id) = id_str.parse::<u64>()
+            {
+                let marker = entry.path().join("_complete");
+                if tokio::fs::metadata(&marker).await.is_ok() {
+                    best = Some(best.map_or(id, |b: u64| b.max(id)));
                 }
             }
         }
@@ -98,12 +97,12 @@ impl SnapshotStore {
         while let Some(entry) = entries.next_entry().await.map_err(FlumeError::Io)? {
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            if let Some(id_str) = name.strip_prefix("cp-") {
-                if let Ok(id) = id_str.parse::<u64>() {
-                    let marker = entry.path().join("_complete");
-                    if tokio::fs::metadata(&marker).await.is_ok() {
-                        committed.push(id);
-                    }
+            if let Some(id_str) = name.strip_prefix("cp-")
+                && let Ok(id) = id_str.parse::<u64>()
+            {
+                let marker = entry.path().join("_complete");
+                if tokio::fs::metadata(&marker).await.is_ok() {
+                    committed.push(id);
                 }
             }
         }
