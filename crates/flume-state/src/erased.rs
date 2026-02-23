@@ -8,9 +8,9 @@ use flume_core::FlumeResult;
 /// has a corresponding erased wrapper that implements this trait. The backend stores
 /// `Box<dyn ErasedState>` and can serialize all state without knowing concrete types.
 pub(crate) trait ErasedState: Send {
-    /// Serialize the current state to bytes (bincode).
+    /// Serialize the current state to bytes (bitcode).
     fn snapshot_bytes(&self) -> FlumeResult<Vec<u8>>;
 
-    /// Restore state from bytes (bincode).
+    /// Restore state from bytes (bitcode).
     fn restore_bytes(&self, data: &[u8]) -> FlumeResult<()>;
 }

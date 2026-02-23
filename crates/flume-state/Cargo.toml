@@ -6,6 +6,6 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-bincode = "1"
-flume-core = { path = "../flume-core" }
+bitcode = { version = "0.6", features = ["serde"] }
+flume-core = { path = "../flume-core", version = "0.1.0" }
 serde = { version = "1", features = ["derive"] }

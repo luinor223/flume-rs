@@ -3,7 +3,10 @@ all-features = true
 
 [advisories]
 unmaintained = "workspace"
-ignore = []
+ignore = [
+    # tokio-tar vulnerability in testcontainers (dev-dep only, not shipped)
+    "RUSTSEC-2025-0111",
+]
 
 [licenses]
 confidence-threshold = 0.93

@@ -67,12 +67,12 @@ impl<V: Send + Clone + Serialize + DeserializeOwned> ErasedState for ErasedValue
             .inner
             .lock()
             .map_err(|e| FlumeError::State(e.to_string()))?;
-        bincode::serialize(&*guard).map_err(|e| FlumeError::Serialization(e.to_string()))
+        bitcode::serialize(&*guard).map_err(|e| FlumeError::Serialization(e.to_string()))
     }
 
     fn restore_bytes(&self, data: &[u8]) -> FlumeResult<()> {
         let value: Option<V> =
-            bincode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
+            bitcode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
         let mut guard = self
             .inner
             .lock()
@@ -128,12 +128,12 @@ impl<V: Send + Clone + Serialize + DeserializeOwned> ErasedState for ErasedListS
             .inner
             .lock()
             .map_err(|e| FlumeError::State(e.to_string()))?;
-        bincode::serialize(&*guard).map_err(|e| FlumeError::Serialization(e.to_string()))
+        bitcode::serialize(&*guard).map_err(|e| FlumeError::Serialization(e.to_string()))
     }
 
     fn restore_bytes(&self, data: &[u8]) -> FlumeResult<()> {
         let value: Vec<V> =
-            bincode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
+            bitcode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
         let mut guard = self
             .inner
             .lock()
@@ -210,12 +210,12 @@ where
             .inner
             .lock()
             .map_err(|e| FlumeError::State(e.to_string()))?;
-        bincode::serialize(&*guard).map_err(|e| FlumeError::Serialization(e.to_string()))
+        bitcode::serialize(&*guard).map_err(|e| FlumeError::Serialization(e.to_string()))
     }
 
     fn restore_bytes(&self, data: &[u8]) -> FlumeResult<()> {
         let value: HashMap<K, V> =
-            bincode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
+            bitcode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
         let mut guard = self
             .inner
             .lock()
@@ -233,7 +233,7 @@ where
 ///
 /// Stores all state in `Arc<Mutex<...>>` so that both the returned handles
 /// and the backend itself share access. Snapshot serializes all state to a
-/// `HashMap<String, Vec<u8>>` via bincode.
+/// `HashMap<String, Vec<u8>>` via bitcode.
 pub struct MemoryStateBackend {
     states: HashMap<String, Box<dyn ErasedState>>,
 }
@@ -316,12 +316,12 @@ impl StateBackend for MemoryStateBackend {
         for (name, state) in &self.states {
             map.insert(name.clone(), state.snapshot_bytes()?);
         }
-        bincode::serialize(&map).map_err(|e| FlumeError::Serialization(e.to_string()))
+        bitcode::serialize(&map).map_err(|e| FlumeError::Serialization(e.to_string()))
     }
 
     fn restore(&mut self, data: &[u8]) -> FlumeResult<()> {
         let map: HashMap<String, Vec<u8>> =
-            bincode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
+            bitcode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
         for (name, bytes) in &map {
             if let Some(state) = self.states.get(name) {
                 state.restore_bytes(bytes)?;

@@ -30,7 +30,7 @@ impl KeyedStateBackend {
     /// Set the current key. State operations will be scoped to this key.
     pub fn set_current_key<K: Serialize>(&mut self, key: &K) -> FlumeResult<()> {
         let bytes =
-            bincode::serialize(key).map_err(|e| FlumeError::Serialization(e.to_string()))?;
+            bitcode::serialize(key).map_err(|e| FlumeError::Serialization(e.to_string()))?;
         self.current_key = Some(bytes);
         Ok(())
     }
@@ -55,13 +55,13 @@ impl KeyedStateBackend {
         for (key, backend) in &self.backends {
             map.insert(key.clone(), backend.snapshot()?);
         }
-        bincode::serialize(&map).map_err(|e| FlumeError::Serialization(e.to_string()))
+        bitcode::serialize(&map).map_err(|e| FlumeError::Serialization(e.to_string()))
     }
 
     /// Restore all keyed state from snapshot bytes.
     pub fn restore(&mut self, data: &[u8]) -> FlumeResult<()> {
         let map: HashMap<Vec<u8>, Vec<u8>> =
-            bincode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
+            bitcode::deserialize(data).map_err(|e| FlumeError::Serialization(e.to_string()))?;
         for (key, bytes) in &map {
             if let Some(backend) = self.backends.get_mut(key) {
                 backend.restore(bytes)?;
