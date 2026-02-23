@@ -1,0 +1,16 @@
+FROM rust:1.86-bookworm
+
+# Install Docker CLI for testcontainers
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    docker.io \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . .
+
+# Build the integration tests (but don't run yet)
+RUN cargo test -p flume-connector-kafka --no-run 2>&1
+
+# Run only the ignored (integration) tests at container start
+# Mount Docker socket: docker run -v /var/run/docker.sock:/var/run/docker.sock
+CMD ["cargo", "test", "-p", "flume-connector-kafka", "--", "--ignored"]

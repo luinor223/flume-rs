@@ -53,6 +53,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --all-features
 
+  integration:
+    name: Integration Tests
+    needs: [fmt, clippy, deny, check]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p flume-connector-kafka -- --ignored
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
