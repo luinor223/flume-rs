@@ -1,0 +1,11 @@
+[package]
+name = "flume-api"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+flume-core = { path = "../flume-core" }
+flume-runtime = { path = "../flume-runtime" }
+tokio = { version = "1", features = ["sync", "rt", "macros"] }

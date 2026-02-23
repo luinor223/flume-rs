@@ -1,21 +1,24 @@
 //! Source trait for data ingestion.
 
 use std::future::Future;
+use std::pin::Pin;
 
 use crate::{FlumeResult, StreamElement};
+
+/// Boxed future type alias for Source methods.
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// Async trait for data ingestion. Sources are I/O-bound
 /// (reading from Kafka, TCP, files).
 ///
-/// Uses a manual async trait pattern instead of `async_trait` to avoid
-/// the extra dependency in flume-core.
+/// Uses boxed futures to allow dynamic dispatch (`Box<dyn Source<T>>`).
 pub trait Source<T: Send + 'static>: Send {
     /// Fetch the next element. Returns `None` when the source is exhausted.
-    fn next(&mut self) -> impl Future<Output = FlumeResult<Option<StreamElement<T>>>> + Send;
+    fn next(&mut self) -> BoxFuture<'_, FlumeResult<Option<StreamElement<T>>>>;
 
     /// Save the source's position (e.g., Kafka offsets) for checkpointing.
-    fn snapshot(&self) -> impl Future<Output = FlumeResult<Vec<u8>>> + Send;
+    fn snapshot(&self) -> BoxFuture<'_, FlumeResult<Vec<u8>>>;
 
     /// Reset the source to a previously checkpointed position.
-    fn restore(&mut self, state: Vec<u8>) -> impl Future<Output = FlumeResult<()>> + Send;
+    fn restore(&mut self, state: Vec<u8>) -> BoxFuture<'_, FlumeResult<()>>;
 }
