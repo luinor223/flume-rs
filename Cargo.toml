@@ -1,6 +1,14 @@
 [workspace]
 resolver = "2"
-members = ["crates/flume-core", "crates/flume-runtime", "crates/flume-api", "crates/flume-state"]
+members = [
+    "crates/flume-core",
+    "crates/flume-runtime",
+    "crates/flume-api",
+    "crates/flume-state",
+    "crates/flume-connectors/flume-connector-file",
+    "crates/flume-connectors/flume-connector-tcp",
+    "crates/flume-connectors/flume-connector-kafka",
+]
 
 [workspace.package]
 edition = "2024"

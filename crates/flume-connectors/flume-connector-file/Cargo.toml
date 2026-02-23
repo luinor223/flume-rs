@@ -1,0 +1,13 @@
+[package]
+name = "flume-connector-file"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+flume-core = { path = "../../flume-core", version = "0.1.0" }
+tokio = { version = "1", features = ["fs", "io-util", "rt", "macros"] }
+
+[dev-dependencies]
+tempfile = "3"
