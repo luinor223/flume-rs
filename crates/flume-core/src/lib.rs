@@ -3,10 +3,12 @@
 //! This crate has minimal dependencies and defines the vocabulary
 //! shared by every other crate in the workspace.
 
+mod config;
 mod error;
 mod record;
 mod time;
 
+pub use config::PipelineConfig;
 pub use error::{FlumeError, FlumeResult};
 pub use record::{CheckpointBarrier, Record, StreamElement, Watermark};
 pub use time::EventTimestamp;
