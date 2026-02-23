@@ -14,7 +14,7 @@ mod window;
 pub use config::PipelineConfig;
 pub use error::{FlumeError, FlumeResult};
 pub use operator::{FilterOperator, FlatMapOperator, MapOperator, WindowOperator};
-pub use record::{CheckpointBarrier, Record, StreamElement, Watermark};
+pub use record::{CheckpointAck, CheckpointBarrier, Record, StreamElement, Watermark};
 pub use time::EventTimestamp;
 pub use traits::{
     Collector, ListState, MapState, Operator, Sink, Source, StateBackend, ValueState,

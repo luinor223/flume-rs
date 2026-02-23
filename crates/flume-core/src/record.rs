@@ -72,6 +72,25 @@ impl CheckpointBarrier {
     }
 }
 
+/// Acknowledgment sent by an operator after snapshotting its state
+/// in response to a `CheckpointBarrier`.
+#[derive(Debug, Clone)]
+pub struct CheckpointAck {
+    pub checkpoint_id: u64,
+    pub operator_name: String,
+    pub state_bytes: Vec<u8>,
+}
+
+impl CheckpointAck {
+    pub fn new(checkpoint_id: u64, operator_name: String, state_bytes: Vec<u8>) -> Self {
+        Self {
+            checkpoint_id,
+            operator_name,
+            state_bytes,
+        }
+    }
+}
+
 /// The unit of transport between operators. Wraps data and control messages
 /// in a single enum so they flow inline through the same channels.
 #[derive(Debug, Clone)]
