@@ -23,7 +23,7 @@ pub trait ListState<V: Send + Clone>: Send {
 }
 
 /// Per-entry access map per key. Use for lookup tables, indexes.
-pub trait MapState<K: Send + Hash + Eq, V: Send + Clone>: Send {
+pub trait MapState<K: Send + Clone + Hash + Eq, V: Send + Clone>: Send {
     fn get(&self, key: &K) -> FlumeResult<Option<V>>;
     fn put(&mut self, key: K, value: V) -> FlumeResult<()>;
     fn remove(&mut self, key: &K) -> FlumeResult<()>;
