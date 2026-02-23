@@ -4,7 +4,9 @@
 //! shared by every other crate in the workspace.
 
 mod error;
+mod record;
 mod time;
 
 pub use error::{FlumeError, FlumeResult};
+pub use record::{CheckpointBarrier, Record, StreamElement, Watermark};
 pub use time::EventTimestamp;
