@@ -1,0 +1,15 @@
+[package]
+name = "flume-connector-kafka"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+flume-core = { path = "../../flume-core", version = "0.1.0" }
+rdkafka = { version = "0.36" }
+tokio = { version = "1", features = ["rt", "macros"] }
+
+[dev-dependencies]
+testcontainers = "0.23"
+testcontainers-modules = { version = "0.11", features = ["kafka"] }
