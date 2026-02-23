@@ -7,11 +7,14 @@ use std::time::Duration;
 use flume_connector_kafka::{KafkaSinkBuilder, KafkaSourceBuilder};
 use flume_core::{EventTimestamp, Record, Sink, Source, StreamElement};
 use testcontainers::runners::AsyncRunner;
-use testcontainers_modules::kafka::apache::Kafka;
+use testcontainers_modules::kafka::apache::{self, Kafka};
 
 async fn start_kafka() -> (testcontainers::ContainerAsync<Kafka>, String) {
     let container = Kafka::default().start().await.unwrap();
-    let port = container.get_host_port_ipv4(9093).await.unwrap();
+    let port = container
+        .get_host_port_ipv4(apache::KAFKA_PORT)
+        .await
+        .unwrap();
     let brokers = format!("127.0.0.1:{port}");
     // Give Kafka a moment to be fully ready
     tokio::time::sleep(Duration::from_secs(2)).await;
