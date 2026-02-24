@@ -16,6 +16,9 @@ struct WindowKey {
     window: Window,
 }
 
+/// Maximum number of key buffers to keep in the pool.
+const KEY_POOL_CAP: usize = 1024;
+
 /// A stateful operator that assigns records to windows, incrementally
 /// aggregates them, and emits results when the trigger fires.
 pub struct WindowOperator<A, Agg>
@@ -28,6 +31,8 @@ where
     aggregate: Agg,
     /// Per (key, window) accumulators.
     accumulators: HashMap<WindowKey, A>,
+    /// Pool of reusable key buffers to reduce per-record allocation.
+    key_pool: Vec<Vec<u8>>,
 }
 
 impl<A, Agg> WindowOperator<A, Agg>
@@ -41,12 +46,31 @@ where
             trigger: Box::new(EventTimeTrigger),
             aggregate,
             accumulators: HashMap::new(),
+            key_pool: Vec::new(),
         }
     }
 
     pub fn with_trigger(mut self, trigger: Box<dyn Trigger>) -> Self {
         self.trigger = trigger;
         self
+    }
+
+    /// Pop a reusable buffer from the pool, or return a fresh empty vec.
+    fn pool_get(&mut self) -> Vec<u8> {
+        self.key_pool
+            .pop()
+            .map(|mut v| {
+                v.clear();
+                v
+            })
+            .unwrap_or_default()
+    }
+
+    /// Return a buffer to the pool (capped at [`KEY_POOL_CAP`]).
+    fn pool_put(&mut self, buf: Vec<u8>) {
+        if self.key_pool.len() < KEY_POOL_CAP {
+            self.key_pool.push(buf);
+        }
     }
 }
 
@@ -62,7 +86,7 @@ where
         record: Record<In>,
         _collector: &mut dyn Collector<Out>,
     ) -> FlumeResult<()> {
-        let key = record.key.clone().unwrap_or_default();
+        let key = record.key.clone().unwrap_or_else(|| self.pool_get());
         let windows = self.assigner.assign_windows(record.timestamp);
 
         for window in windows {
@@ -115,9 +139,11 @@ where
             }
         }
 
-        // Purge: remove accumulators.
-        for wk in &to_purge {
-            self.accumulators.remove(wk);
+        // Purge: remove accumulators and return key buffers to the pool.
+        for wk in to_purge {
+            if let Some(_acc) = self.accumulators.remove(&wk) {
+                self.pool_put(wk.key);
+            }
         }
 
         // Forward the watermark.
@@ -289,5 +315,48 @@ mod tests {
             .filter(|e| matches!(e, StreamElement::Record(_)))
             .count();
         assert_eq!(record_count, 1); // Only one result from the first fire.
+    }
+
+    #[test]
+    fn test_key_pool_reuse() {
+        let assigner = TumblingWindow::new(Duration::from_secs(10));
+        let mut op = WindowOperator::new(Box::new(assigner), SumAggregator);
+        let mut collector = TestCollector::<i64>::new();
+
+        assert!(op.key_pool.is_empty());
+
+        // Send a record and fire the window to populate the pool.
+        op.process_record(
+            Record::new(10i64, EventTimestamp::new(1_000)).with_key(vec![1]),
+            &mut collector,
+        )
+        .unwrap();
+
+        let wm = Watermark::new(EventTimestamp::new(10_000));
+        op.process_watermark(wm, &mut collector).unwrap();
+
+        // After purge, the key buffer should be in the pool.
+        assert_eq!(op.key_pool.len(), 1);
+
+        // Send another record in the next window — should reuse the pooled buffer.
+        op.process_record(
+            Record::new(20i64, EventTimestamp::new(11_000)).with_key(vec![2]),
+            &mut collector,
+        )
+        .unwrap();
+
+        // The result should still be correct.
+        let wm2 = Watermark::new(EventTimestamp::new(20_000));
+        op.process_watermark(wm2, &mut collector).unwrap();
+
+        let results: Vec<_> = collector
+            .elements
+            .iter()
+            .filter_map(|e| match e {
+                StreamElement::Record(r) => Some(r.value),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(results, vec![10, 20]);
     }
 }
