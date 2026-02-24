@@ -3,18 +3,32 @@
 use flume_core::{FlumeError, FlumeResult};
 use metrics::{counter, gauge};
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info};
 
 /// Manages spawned async tasks and their lifecycle.
 pub struct Scheduler {
     handles: Vec<(String, JoinHandle<FlumeResult<()>>)>,
+    cancel: CancellationToken,
 }
 
 impl Scheduler {
     pub fn new() -> Self {
         Self {
             handles: Vec::new(),
+            cancel: CancellationToken::new(),
         }
+    }
+
+    /// Return a clone of the cancellation token for this scheduler.
+    pub fn cancel_token(&self) -> CancellationToken {
+        self.cancel.clone()
+    }
+
+    /// Signal all tasks to cancel.
+    pub fn cancel(&self) {
+        info!("scheduler cancel requested");
+        self.cancel.cancel();
     }
 
     /// Spawn a named async task.
@@ -123,5 +137,36 @@ mod tests {
         let result = scheduler.wait_all().await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("panicked"));
+    }
+
+    #[tokio::test]
+    async fn test_cancel_token() {
+        let scheduler = Scheduler::new();
+        let token = scheduler.cancel_token();
+        assert!(!token.is_cancelled());
+        scheduler.cancel();
+        assert!(token.is_cancelled());
+    }
+
+    #[tokio::test]
+    async fn test_scheduler_cancel_stops_task() {
+        let mut scheduler = Scheduler::new();
+        let token = scheduler.cancel_token();
+
+        scheduler.spawn("cancellable", {
+            let token = token.clone();
+            async move {
+                token.cancelled().await;
+                Ok(())
+            }
+        });
+
+        // Cancel from another task after a brief delay
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            token.cancel();
+        });
+
+        scheduler.wait_all().await.unwrap();
     }
 }

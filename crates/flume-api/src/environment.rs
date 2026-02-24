@@ -3,6 +3,7 @@
 use flume_core::{ChannelKind, PipelineConfig, Source};
 use flume_runtime::dag::{LogicalGraph, NodeKind, PartitionStrategy};
 use flume_runtime::scheduler::Scheduler;
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 use crate::datastream::{DataStream, SourceOrChannel};
@@ -103,6 +104,37 @@ impl StreamExecutionEnvironment {
     /// Add a node to the logical graph.
     pub(crate) fn add_node(&mut self, name: &str, kind: NodeKind, parallelism: usize) -> usize {
         self.graph.add_node(name, kind, parallelism)
+    }
+
+    /// Install a signal handler that triggers graceful shutdown on SIGINT/SIGTERM.
+    ///
+    /// Spawns a background task that listens for signals and calls
+    /// `scheduler.cancel()` when received.
+    pub fn install_signal_handler(&self) {
+        let token = self.scheduler.cancel_token();
+        tokio::spawn(async move {
+            let ctrl_c = tokio::signal::ctrl_c();
+            #[cfg(unix)]
+            {
+                let mut sigterm =
+                    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                        .expect("failed to install SIGTERM handler");
+                tokio::select! {
+                    _ = ctrl_c => {
+                        info!("received SIGINT, initiating graceful shutdown");
+                    }
+                    _ = sigterm.recv() => {
+                        info!("received SIGTERM, initiating graceful shutdown");
+                    }
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                ctrl_c.await.ok();
+                info!("received Ctrl+C, initiating graceful shutdown");
+            }
+            token.cancel();
+        });
     }
 }
 

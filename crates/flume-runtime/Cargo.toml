@@ -11,6 +11,7 @@ perf = ["core_affinity"]
 [dependencies]
 flume-core = { path = "../flume-core", version = "0.1.0" }
 tokio = { version = "1", features = ["sync", "rt", "macros", "time", "fs"] }
+tokio-util = "0.7"
 tracing = "0.1"
 metrics = "0.24"
 ahash = "0.8"

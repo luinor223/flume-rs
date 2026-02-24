@@ -3,6 +3,7 @@
 use flume_core::{Collector, FlumeResult, Operator, StreamElement};
 use metrics::{counter, histogram};
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, info_span, trace, Instrument};
 
 use crate::channel::OperatorInput;
@@ -19,6 +20,7 @@ where
     pub operator: Op,
     pub input: OperatorInput<In>,
     pub collector: Box<dyn Collector<Out>>,
+    cancel: Option<CancellationToken>,
 }
 
 impl<In, Out, Op> TaskExecutor<In, Out, Op>
@@ -38,6 +40,7 @@ where
             operator,
             input,
             collector,
+            cancel: None,
         }
     }
 
@@ -51,14 +54,44 @@ where
         Self::new(name, operator, OperatorInput::Mpsc(input), collector)
     }
 
-    /// Run the hot loop until the input channel is closed.
+    /// Attach a cancellation token for graceful shutdown.
+    pub fn with_cancel(mut self, token: CancellationToken) -> Self {
+        self.cancel = Some(token);
+        self
+    }
+
+    /// Run the hot loop until the input channel is closed or cancellation is requested.
+    ///
+    /// When cancelled, remaining buffered elements are drained before returning.
     pub async fn run(mut self) -> FlumeResult<()> {
         let span = info_span!("task", name = %self.name);
         let task_name = self.name.clone();
+        let cancel = self.cancel.take();
         async {
             info!("task started");
             let mut records_processed: u64 = 0;
-            while let Some(element) = self.input.recv().await {
+            let mut cancelled = false;
+            loop {
+                let element = if cancelled {
+                    // After cancellation, drain remaining buffered elements.
+                    self.input.recv().await
+                } else if let Some(ref token) = cancel {
+                    // Use biased select so cancellation is only checked when recv would block.
+                    tokio::select! {
+                        biased;
+                        elem = self.input.recv() => elem,
+                        _ = token.cancelled() => {
+                            info!("cancellation received, draining remaining records");
+                            cancelled = true;
+                            continue;
+                        }
+                    }
+                } else {
+                    self.input.recv().await
+                };
+
+                let Some(element) = element else { break };
+
                 match element {
                     StreamElement::Record(record) => {
                         trace!(timestamp = record.timestamp.as_millis(), "processing record");
@@ -248,5 +281,85 @@ mod tests {
         assert!(matches!(r1, StreamElement::Record(r) if r.value == 14));
 
         handle.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_cancel_token_propagation() {
+        let (input_tx, input_rx) = tokio::sync::mpsc::channel(16);
+        let (output_collector, mut output_rx) = operator_channel::<i32>(16);
+        let token = CancellationToken::new();
+
+        let executor = TaskExecutor::new_mpsc(
+            "cancel-test",
+            MapOperator::new(|x: i32| x),
+            input_rx,
+            Box::new(output_collector),
+        )
+        .with_cancel(token.clone());
+
+        let handle = tokio::spawn(executor.run());
+
+        // Send a record, then cancel
+        input_tx
+            .send(StreamElement::Record(Record::new(
+                42,
+                EventTimestamp::new(100),
+            )))
+            .await
+            .unwrap();
+
+        // Let the task process the record
+        let _ = output_rx.recv().await;
+
+        // Cancel and drop the sender so the drain finishes
+        token.cancel();
+        drop(input_tx);
+
+        handle.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_cancellation_drains_remaining() {
+        let (input_tx, input_rx) = tokio::sync::mpsc::channel(16);
+        let (output_collector, mut output_rx) = operator_channel::<i32>(16);
+        let token = CancellationToken::new();
+
+        let executor = TaskExecutor::new_mpsc(
+            "drain-test",
+            MapOperator::new(|x: i32| x * 2),
+            input_rx,
+            Box::new(output_collector),
+        )
+        .with_cancel(token.clone());
+
+        // Send records before starting the task
+        input_tx
+            .send(StreamElement::Record(Record::new(
+                1,
+                EventTimestamp::new(100),
+            )))
+            .await
+            .unwrap();
+        input_tx
+            .send(StreamElement::Record(Record::new(
+                2,
+                EventTimestamp::new(200),
+            )))
+            .await
+            .unwrap();
+
+        let handle = tokio::spawn(executor.run());
+
+        // Cancel immediately and close the channel
+        token.cancel();
+        drop(input_tx);
+
+        handle.await.unwrap().unwrap();
+
+        // All records should have been drained and processed
+        let r1 = output_rx.recv().await.unwrap();
+        assert!(matches!(r1, StreamElement::Record(r) if r.value == 2));
+        let r2 = output_rx.recv().await.unwrap();
+        assert!(matches!(r2, StreamElement::Record(r) if r.value == 4));
     }
 }

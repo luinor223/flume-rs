@@ -7,6 +7,7 @@ use std::time::Duration;
 use flume_core::{CheckpointAck, CheckpointBarrier, EventTimestamp};
 use metrics::{counter, histogram};
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
 
 use super::SnapshotStore;
@@ -52,14 +53,26 @@ impl CheckpointCoordinator {
     }
 
     /// Run the coordinator loop. Returns when all barrier senders are closed
-    /// (i.e., the pipeline has shut down).
-    pub async fn run(&mut self) {
+    /// (i.e., the pipeline has shut down) or the cancellation token is triggered.
+    ///
+    /// On cancellation, triggers one final checkpoint before returning.
+    pub async fn run(&mut self, cancel: CancellationToken) {
         let mut ticker = tokio::time::interval(self.interval);
         // The first tick fires immediately; skip it so the pipeline can start.
         ticker.tick().await;
 
         loop {
-            ticker.tick().await;
+            tokio::select! {
+                biased;
+                _ = cancel.cancelled() => {
+                    info!("checkpoint coordinator cancelled, triggering final checkpoint");
+                    let cp_id = self.next_checkpoint_id;
+                    self.next_checkpoint_id += 1;
+                    let _ = self.trigger_and_collect(cp_id).await;
+                    return;
+                }
+                _ = ticker.tick() => {}
+            }
 
             let cp_id = self.next_checkpoint_id;
             self.next_checkpoint_id += 1;
@@ -206,7 +219,8 @@ mod tests {
 
         // Run coordinator — it will do checkpoint 1 successfully,
         // then checkpoint 2 will timeout or pipeline shuts down
-        tokio::time::timeout(Duration::from_secs(5), coordinator.run())
+        let cancel = CancellationToken::new();
+        tokio::time::timeout(Duration::from_secs(5), coordinator.run(cancel))
             .await
             .ok();
 
@@ -242,7 +256,8 @@ mod tests {
         let drain_task = tokio::spawn(async move { while barrier_rx.recv().await.is_some() {} });
 
         // Run for a bit — coordinator should timeout and keep retrying
-        tokio::time::timeout(Duration::from_millis(300), coordinator.run())
+        let cancel = CancellationToken::new();
+        tokio::time::timeout(Duration::from_millis(300), coordinator.run(cancel))
             .await
             .ok();
 
