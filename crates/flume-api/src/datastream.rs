@@ -4,7 +4,7 @@ use flume_core::{
     CheckpointBarrier, Collector, FilterOperator, FlatMapOperator, FlumeError, FlumeResult,
     MapOperator, Operator, Record, Sink, Source, StreamElement, Watermark, WindowAssigner,
 };
-use flume_runtime::channel::{operator_channel_with_kind, OperatorInput};
+use flume_runtime::channel::{OperatorInput, operator_channel_with_kind};
 use flume_runtime::dag::{NodeKind, PartitionStrategy};
 use flume_runtime::task::TaskExecutor;
 
@@ -84,8 +84,7 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
             .add_edge(self.node_id, new_node_id, PartitionStrategy::Forward);
 
         let task_name = format!("{name}-{new_node_id}");
-        let executor =
-            TaskExecutor::new(task_name.clone(), operator, input, output_collector);
+        let executor = TaskExecutor::new(task_name.clone(), operator, input, output_collector);
         self.env.scheduler.spawn(task_name, executor.run());
 
         DataStream::new(self.env, new_node_id, SourceOrChannel::Input(output_input))

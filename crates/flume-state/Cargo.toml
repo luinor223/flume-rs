@@ -9,3 +9,10 @@ license.workspace = true
 bitcode = { version = "0.6", features = ["serde"] }
 flume-core = { path = "../flume-core", version = "0.1.0" }
 serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "serde"
+harness = false
