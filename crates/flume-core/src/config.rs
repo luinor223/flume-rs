@@ -2,6 +2,16 @@
 
 use std::time::Duration;
 
+/// Which channel implementation to use between operators.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ChannelKind {
+    /// `tokio::sync::mpsc` bounded channel (default, general-purpose).
+    #[default]
+    Mpsc,
+    /// Lock-free SPSC ring buffer (lower latency for single-producer edges).
+    RingBuffer,
+}
+
 /// Global settings for a pipeline execution.
 #[derive(Debug, Clone)]
 pub struct PipelineConfig {

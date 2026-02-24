@@ -4,10 +4,9 @@ use flume_core::{
     CheckpointBarrier, Collector, FilterOperator, FlatMapOperator, FlumeError, FlumeResult,
     MapOperator, Operator, Record, Sink, Source, StreamElement, Watermark, WindowAssigner,
 };
-use flume_runtime::channel::operator_channel;
+use flume_runtime::channel::{operator_channel, OperatorInput};
 use flume_runtime::dag::{NodeKind, PartitionStrategy};
 use flume_runtime::task::TaskExecutor;
-use tokio::sync::mpsc;
 
 use crate::environment::StreamExecutionEnvironment;
 use crate::windowed::WindowedStream;
@@ -15,7 +14,7 @@ use crate::windowed::WindowedStream;
 /// Internal representation of a DataStream's upstream input.
 pub(crate) enum SourceOrChannel<T: Send + 'static> {
     Source(Box<dyn Source<T>>),
-    Channel(mpsc::Receiver<StreamElement<T>>),
+    Input(OperatorInput<T>),
 }
 
 /// A lazy, typed stream of records. Transformations build the execution graph
@@ -40,16 +39,16 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         }
     }
 
-    /// Wire the upstream source or channel into an mpsc receiver.
+    /// Wire the upstream source or channel into an `OperatorInput`.
     /// If upstream is a Source, spawns a drainer task that reads from the
-    /// source and sends elements into the channel.
-    fn wire_upstream(&mut self) -> mpsc::Receiver<StreamElement<T>> {
+    /// source and sends elements into an mpsc channel.
+    fn wire_upstream(&mut self) -> OperatorInput<T> {
         let upstream = self.upstream.take().expect("upstream already consumed");
         match upstream {
-            SourceOrChannel::Channel(rx) => rx,
+            SourceOrChannel::Input(input) => input,
             SourceOrChannel::Source(mut source) => {
                 let buffer_size = self.env.config.channel_buffer_size;
-                let (tx, rx) = mpsc::channel(buffer_size);
+                let (tx, rx) = tokio::sync::mpsc::channel(buffer_size);
                 self.env.scheduler.spawn("source-drainer", async move {
                     while let Some(element) = source.next().await? {
                         tx.send(element)
@@ -58,7 +57,7 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
                     }
                     Ok(())
                 });
-                rx
+                OperatorInput::Mpsc(rx)
             }
         }
     }
@@ -74,7 +73,7 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         Out: Send + 'static,
         Op: Operator<T, Out> + 'static,
     {
-        let input_rx = self.wire_upstream();
+        let input = self.wire_upstream();
         let buffer_size = self.env.config.channel_buffer_size;
         let (output_collector, output_rx) = operator_channel::<Out>(buffer_size);
 
@@ -86,12 +85,16 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         let executor = TaskExecutor::new(
             task_name.clone(),
             operator,
-            input_rx,
+            input,
             Box::new(output_collector),
         );
         self.env.scheduler.spawn(task_name, executor.run());
 
-        DataStream::new(self.env, new_node_id, SourceOrChannel::Channel(output_rx))
+        DataStream::new(
+            self.env,
+            new_node_id,
+            SourceOrChannel::Input(OperatorInput::Mpsc(output_rx)),
+        )
     }
 
     /// 1:1 transformation. Transforms each record via `f(T) -> U`.
@@ -151,10 +154,10 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         self.env
             .add_edge(self.node_id, sink_id, PartitionStrategy::Forward);
 
-        let mut input_rx = self.wire_upstream();
+        let mut input = self.wire_upstream();
 
         // Drain the input channel inline (not spawned).
-        while let Some(element) = input_rx.recv().await {
+        while let Some(element) = input.recv().await {
             match element {
                 StreamElement::Record(record) => {
                     sink.write(record).await?;

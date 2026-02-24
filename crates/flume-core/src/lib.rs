@@ -11,7 +11,7 @@ mod time;
 mod traits;
 mod window;
 
-pub use config::PipelineConfig;
+pub use config::{ChannelKind, PipelineConfig};
 pub use error::{FlumeError, FlumeResult};
 pub use operator::{FilterOperator, FlatMapOperator, MapOperator, WindowOperator};
 pub use record::{CheckpointAck, CheckpointBarrier, Record, StreamElement, Watermark};
