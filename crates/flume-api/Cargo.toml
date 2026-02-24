@@ -13,6 +13,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 metrics = "0.24"
 metrics-exporter-prometheus = { version = "0.16", optional = true }
+toml = "0.8"
+
+[dev-dependencies]
+tempfile = "3"
 
 [features]
 prometheus = ["metrics-exporter-prometheus"]

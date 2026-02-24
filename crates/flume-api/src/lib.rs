@@ -3,6 +3,7 @@
 //! Mirrors Flink's DataStream API: a fluent builder pattern where each
 //! transformation returns a new stream that can be further transformed.
 
+pub mod config;
 mod datastream;
 mod environment;
 pub mod functions;

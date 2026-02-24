@@ -51,6 +51,21 @@ impl StreamExecutionEnvironment {
         }
     }
 
+    /// Create an environment from an existing [`PipelineConfig`].
+    pub fn from_config(config: PipelineConfig) -> Self {
+        Self {
+            config,
+            graph: LogicalGraph::new(),
+            scheduler: Scheduler::new(),
+        }
+    }
+
+    /// Create an environment by loading a TOML config file (with env var overlay).
+    pub fn from_toml(path: &std::path::Path) -> flume_core::FlumeResult<Self> {
+        let config = crate::config::load_config(Some(path))?;
+        Ok(Self::from_config(config))
+    }
+
     /// Set the default parallelism for operators.
     pub fn set_parallelism(&mut self, parallelism: usize) {
         self.config.parallelism = parallelism;
