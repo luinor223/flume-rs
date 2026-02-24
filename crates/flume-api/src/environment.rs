@@ -106,6 +106,18 @@ impl StreamExecutionEnvironment {
         self.graph.add_node(name, kind, parallelism)
     }
 
+    /// Bridge an external cancellation token to the scheduler's internal token.
+    ///
+    /// When the external token is cancelled, the scheduler's token is also
+    /// cancelled. This allows the server to control job shutdown externally.
+    pub fn connect_cancel_token(&self, external: tokio_util::sync::CancellationToken) {
+        let internal = self.scheduler.cancel_token();
+        tokio::spawn(async move {
+            external.cancelled().await;
+            internal.cancel();
+        });
+    }
+
     /// Install a signal handler that triggers graceful shutdown on SIGINT/SIGTERM.
     ///
     /// Spawns a background task that listens for signals and calls
