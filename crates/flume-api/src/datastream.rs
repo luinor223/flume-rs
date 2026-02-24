@@ -88,8 +88,8 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         let task_name = format!("{name}-{new_node_id}");
         debug!(operator = %name, node_id = new_node_id, "wiring operator");
         let cancel = self.env.scheduler.cancel_token();
-        let executor =
-            TaskExecutor::new(task_name.clone(), operator, input, output_collector).with_cancel(cancel);
+        let executor = TaskExecutor::new(task_name.clone(), operator, input, output_collector)
+            .with_cancel(cancel);
         self.env.scheduler.spawn(task_name, executor.run());
 
         DataStream::new(self.env, new_node_id, SourceOrChannel::Input(output_input))

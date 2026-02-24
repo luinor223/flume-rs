@@ -75,8 +75,7 @@ impl<In: Send, Out: Send, Op: Operator<In, Out>> TestHarness<In, Out, Op> {
 
     /// Process a full [`Record<In>`].
     pub fn process_record(&mut self, record: Record<In>) -> FlumeResult<()> {
-        self.operator
-            .process_record(record, &mut self.collector)
+        self.operator.process_record(record, &mut self.collector)
     }
 
     /// Convenience: process a value with a timestamp and no key.
@@ -216,9 +215,7 @@ mod tests {
 
         let output = h.take_output();
         assert_eq!(output.len(), 1);
-        assert!(
-            matches!(&output[0], StreamElement::CheckpointBarrier(b) if b.checkpoint_id == 42)
-        );
+        assert!(matches!(&output[0], StreamElement::CheckpointBarrier(b) if b.checkpoint_id == 42));
     }
 
     struct SumAgg;

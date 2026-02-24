@@ -4,7 +4,7 @@ use flume_core::{Collector, FlumeResult, Operator, StreamElement};
 use metrics::{counter, histogram};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, info, info_span, trace, Instrument};
+use tracing::{Instrument, debug, info, info_span, trace};
 
 use crate::channel::OperatorInput;
 
@@ -94,7 +94,10 @@ where
 
                 match element {
                     StreamElement::Record(record) => {
-                        trace!(timestamp = record.timestamp.as_millis(), "processing record");
+                        trace!(
+                            timestamp = record.timestamp.as_millis(),
+                            "processing record"
+                        );
                         let start = std::time::Instant::now();
                         self.operator
                             .process_record(record, self.collector.as_mut())?;

@@ -103,7 +103,11 @@ impl CheckpointCoordinator {
         let barrier = CheckpointBarrier::new(checkpoint_id, EventTimestamp::new(0));
 
         // Send barriers to all sources
-        debug!(checkpoint_id, num_sources = self.barrier_senders.len(), "injecting barriers");
+        debug!(
+            checkpoint_id,
+            num_sources = self.barrier_senders.len(),
+            "injecting barriers"
+        );
         for sender in &self.barrier_senders {
             if sender.send(barrier).await.is_err() {
                 return CheckpointResult::PipelineShutdown;

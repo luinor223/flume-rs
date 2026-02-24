@@ -98,9 +98,7 @@ mod tests {
     use super::*;
 
     /// Build a fake env lookup from a map.
-    fn fake_env(
-        vars: HashMap<&str, &str>,
-    ) -> impl Fn(&str) -> Result<String, std::env::VarError> {
+    fn fake_env(vars: HashMap<&str, &str>) -> impl Fn(&str) -> Result<String, std::env::VarError> {
         let owned: HashMap<String, String> = vars
             .into_iter()
             .map(|(k, v)| (k.to_owned(), v.to_owned()))
@@ -225,7 +223,12 @@ parallelism = 2
         let result = apply_env_overlay(&mut config, env);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("FLUME_PARALLELISM"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("FLUME_PARALLELISM")
+        );
     }
 
     #[test]
@@ -236,9 +239,11 @@ parallelism = 2
         let result = apply_env_overlay(&mut config, env);
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("FLUME_CHANNEL_KIND"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("FLUME_CHANNEL_KIND")
+        );
     }
 }
