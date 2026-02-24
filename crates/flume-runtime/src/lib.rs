@@ -7,6 +7,7 @@ pub mod channel;
 pub mod checkpoint;
 pub mod dag;
 pub mod partition;
+pub mod pinned;
 pub mod ring_buffer;
 pub mod scheduler;
 pub mod task;

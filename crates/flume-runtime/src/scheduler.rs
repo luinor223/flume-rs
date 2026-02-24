@@ -26,6 +26,20 @@ impl Scheduler {
         self.handles.push((name, handle));
     }
 
+    /// Spawn a named task pinned to a CPU core (requires `perf` feature).
+    ///
+    /// Falls back to `tokio::spawn` when the `perf` feature is disabled.
+    pub fn spawn_pinned(
+        &mut self,
+        name: impl Into<String>,
+        core_id: usize,
+        future: impl std::future::Future<Output = FlumeResult<()>> + Send + 'static,
+    ) {
+        let name = name.into();
+        let handle = crate::pinned::spawn_pinned(core_id, future);
+        self.handles.push((name, handle));
+    }
+
     /// Wait for all tasks to complete. Returns the first error encountered.
     pub async fn wait_all(self) -> FlumeResult<()> {
         let mut first_error: Option<FlumeError> = None;
