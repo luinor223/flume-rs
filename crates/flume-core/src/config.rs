@@ -29,6 +29,8 @@ pub struct PipelineConfig {
     pub checkpoint_timeout: Duration,
     /// Number of completed checkpoints to retain before cleaning up old ones.
     pub max_retained_checkpoints: usize,
+    /// Channel implementation between operators.
+    pub channel_kind: ChannelKind,
 }
 
 impl Default for PipelineConfig {
@@ -41,6 +43,7 @@ impl Default for PipelineConfig {
             allowed_lateness: Duration::ZERO,
             checkpoint_timeout: Duration::from_secs(60),
             max_retained_checkpoints: 3,
+            channel_kind: ChannelKind::default(),
         }
     }
 }

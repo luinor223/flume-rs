@@ -4,7 +4,7 @@ use flume_core::{
     CheckpointBarrier, Collector, FilterOperator, FlatMapOperator, FlumeError, FlumeResult,
     MapOperator, Operator, Record, Sink, Source, StreamElement, Watermark, WindowAssigner,
 };
-use flume_runtime::channel::{operator_channel, OperatorInput};
+use flume_runtime::channel::{operator_channel_with_kind, OperatorInput};
 use flume_runtime::dag::{NodeKind, PartitionStrategy};
 use flume_runtime::task::TaskExecutor;
 
@@ -75,26 +75,20 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
     {
         let input = self.wire_upstream();
         let buffer_size = self.env.config.channel_buffer_size;
-        let (output_collector, output_rx) = operator_channel::<Out>(buffer_size);
+        let channel_kind = self.env.config.channel_kind;
+        let (output_collector, output_input) =
+            operator_channel_with_kind::<Out>(buffer_size, channel_kind);
 
         let new_node_id = self.env.add_node(name, NodeKind::Operator, 1);
         self.env
             .add_edge(self.node_id, new_node_id, PartitionStrategy::Forward);
 
         let task_name = format!("{name}-{new_node_id}");
-        let executor = TaskExecutor::new(
-            task_name.clone(),
-            operator,
-            input,
-            Box::new(output_collector),
-        );
+        let executor =
+            TaskExecutor::new(task_name.clone(), operator, input, output_collector);
         self.env.scheduler.spawn(task_name, executor.run());
 
-        DataStream::new(
-            self.env,
-            new_node_id,
-            SourceOrChannel::Input(OperatorInput::Mpsc(output_rx)),
-        )
+        DataStream::new(self.env, new_node_id, SourceOrChannel::Input(output_input))
     }
 
     /// 1:1 transformation. Transforms each record via `f(T) -> U`.
@@ -349,6 +343,43 @@ mod tests {
         fn merge(&self, a: &mut i64, b: i64) {
             *a += b;
         }
+    }
+
+    #[tokio::test]
+    async fn test_map_pipeline_ring_buffer() {
+        use flume_core::ChannelKind;
+
+        let mut env = StreamExecutionEnvironment::new();
+        env.set_channel_kind(ChannelKind::RingBuffer);
+        let (sink, results) = CollectSink::new();
+
+        env.from_collection(vec![1, 2, 3])
+            .map(|x| x * 10)
+            .add_sink(sink)
+            .await
+            .unwrap();
+
+        let values = results.lock().unwrap();
+        assert_eq!(*values, vec![10, 20, 30]);
+    }
+
+    #[tokio::test]
+    async fn test_chained_ring_buffer() {
+        use flume_core::ChannelKind;
+
+        let mut env = StreamExecutionEnvironment::new();
+        env.set_channel_kind(ChannelKind::RingBuffer);
+        let (sink, results) = CollectSink::new();
+
+        env.from_collection(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            .filter(|x| x % 2 == 0)
+            .map(|x| x * 10)
+            .add_sink(sink)
+            .await
+            .unwrap();
+
+        let values = results.lock().unwrap();
+        assert_eq!(*values, vec![20, 40, 60, 80, 100]);
     }
 
     #[tokio::test]

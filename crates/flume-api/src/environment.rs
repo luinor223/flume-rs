@@ -1,6 +1,6 @@
 //! Stream execution environment — the entry point for building pipelines.
 
-use flume_core::{PipelineConfig, Source};
+use flume_core::{ChannelKind, PipelineConfig, Source};
 use flume_runtime::dag::{LogicalGraph, NodeKind, PartitionStrategy};
 use flume_runtime::scheduler::Scheduler;
 
@@ -31,6 +31,11 @@ impl StreamExecutionEnvironment {
     /// Set the bounded channel buffer size between operators.
     pub fn set_buffer_size(&mut self, buffer_size: usize) {
         self.config.channel_buffer_size = buffer_size;
+    }
+
+    /// Set the channel implementation between operators.
+    pub fn set_channel_kind(&mut self, kind: ChannelKind) {
+        self.config.channel_kind = kind;
     }
 
     /// Create a stream from an async [`Source`].
