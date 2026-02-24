@@ -7,6 +7,7 @@ use flume_core::{
 use flume_runtime::channel::{OperatorInput, operator_channel_with_kind};
 use flume_runtime::dag::{NodeKind, PartitionStrategy};
 use flume_runtime::task::TaskExecutor;
+use tracing::{debug, info};
 
 use crate::environment::StreamExecutionEnvironment;
 use crate::windowed::WindowedStream;
@@ -49,6 +50,7 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
             SourceOrChannel::Source(mut source) => {
                 let buffer_size = self.env.config.channel_buffer_size;
                 let (tx, rx) = tokio::sync::mpsc::channel(buffer_size);
+                info!("spawning source drainer");
                 self.env.scheduler.spawn("source-drainer", async move {
                     while let Some(element) = source.next().await? {
                         tx.send(element)
@@ -84,6 +86,7 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
             .add_edge(self.node_id, new_node_id, PartitionStrategy::Forward);
 
         let task_name = format!("{name}-{new_node_id}");
+        debug!(operator = %name, node_id = new_node_id, "wiring operator");
         let executor = TaskExecutor::new(task_name.clone(), operator, input, output_collector);
         self.env.scheduler.spawn(task_name, executor.run());
 
@@ -150,6 +153,7 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         let mut input = self.wire_upstream();
 
         // Drain the input channel inline (not spawned).
+        info!("sink drain started");
         while let Some(element) = input.recv().await {
             match element {
                 StreamElement::Record(record) => {
@@ -162,6 +166,7 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
             }
         }
 
+        info!("sink drain finished");
         // Wait for all spawned tasks to finish.
         let scheduler = std::mem::take(&mut self.env.scheduler);
         scheduler.wait_all().await

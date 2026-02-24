@@ -3,9 +3,25 @@
 use flume_core::{ChannelKind, PipelineConfig, Source};
 use flume_runtime::dag::{LogicalGraph, NodeKind, PartitionStrategy};
 use flume_runtime::scheduler::Scheduler;
+use tracing_subscriber::EnvFilter;
 
 use crate::datastream::{DataStream, SourceOrChannel};
 use crate::source::InMemorySource;
+
+/// Initialize structured logging via `tracing-subscriber`.
+///
+/// Respects the `RUST_LOG` environment variable for filtering
+/// (defaults to `info` if not set). When `json` is true, log output
+/// uses JSON format suitable for structured log aggregation.
+pub fn init_logging(json: bool) {
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let builder = tracing_subscriber::fmt().with_env_filter(filter);
+    if json {
+        builder.json().init();
+    } else {
+        builder.init();
+    }
+}
 
 /// The entry point for building and executing a stream processing pipeline.
 pub struct StreamExecutionEnvironment {

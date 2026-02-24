@@ -2,6 +2,7 @@
 
 use flume_core::{Collector, FlumeResult, Operator, StreamElement};
 use tokio::sync::mpsc;
+use tracing::{debug, info, info_span, trace, Instrument};
 
 use crate::channel::OperatorInput;
 
@@ -51,23 +52,35 @@ where
 
     /// Run the hot loop until the input channel is closed.
     pub async fn run(mut self) -> FlumeResult<()> {
-        while let Some(element) = self.input.recv().await {
-            match element {
-                StreamElement::Record(record) => {
-                    self.operator
-                        .process_record(record, self.collector.as_mut())?;
-                }
-                StreamElement::Watermark(wm) => {
-                    self.operator
-                        .process_watermark(wm, self.collector.as_mut())?;
-                }
-                StreamElement::CheckpointBarrier(barrier) => {
-                    self.operator
-                        .process_barrier(barrier, self.collector.as_mut())?;
+        let span = info_span!("task", name = %self.name);
+        async {
+            info!("task started");
+            let mut records_processed: u64 = 0;
+            while let Some(element) = self.input.recv().await {
+                match element {
+                    StreamElement::Record(record) => {
+                        trace!(timestamp = record.timestamp.as_millis(), "processing record");
+                        self.operator
+                            .process_record(record, self.collector.as_mut())?;
+                        records_processed += 1;
+                    }
+                    StreamElement::Watermark(wm) => {
+                        debug!(timestamp = wm.timestamp.as_millis(), "watermark");
+                        self.operator
+                            .process_watermark(wm, self.collector.as_mut())?;
+                    }
+                    StreamElement::CheckpointBarrier(barrier) => {
+                        info!(checkpoint_id = barrier.checkpoint_id, "barrier");
+                        self.operator
+                            .process_barrier(barrier, self.collector.as_mut())?;
+                    }
                 }
             }
+            info!(records_processed, "task finished");
+            Ok(())
         }
-        Ok(())
+        .instrument(span)
+        .await
     }
 }
 

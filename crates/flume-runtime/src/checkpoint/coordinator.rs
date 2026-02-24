@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use flume_core::{CheckpointAck, CheckpointBarrier, EventTimestamp};
 use tokio::sync::mpsc;
+use tracing::{debug, info};
 
 use super::SnapshotStore;
 
@@ -62,12 +63,14 @@ impl CheckpointCoordinator {
             let cp_id = self.next_checkpoint_id;
             self.next_checkpoint_id += 1;
 
+            info!(checkpoint_id = cp_id, "starting checkpoint");
             match self.trigger_and_collect(cp_id).await {
                 CheckpointResult::Success => {
+                    info!(checkpoint_id = cp_id, "checkpoint completed");
                     let _ = self.store.cleanup(self.max_retained).await;
                 }
                 CheckpointResult::Timeout => {
-                    // Checkpoint failed — skip cleanup, next tick will retry
+                    info!(checkpoint_id = cp_id, "checkpoint timed out");
                 }
                 CheckpointResult::PipelineShutdown => {
                     return;
@@ -81,6 +84,7 @@ impl CheckpointCoordinator {
         let barrier = CheckpointBarrier::new(checkpoint_id, EventTimestamp::new(0));
 
         // Send barriers to all sources
+        debug!(checkpoint_id, num_sources = self.barrier_senders.len(), "injecting barriers");
         for sender in &self.barrier_senders {
             if sender.send(barrier).await.is_err() {
                 return CheckpointResult::PipelineShutdown;
@@ -99,6 +103,7 @@ impl CheckpointCoordinator {
 
             match tokio::time::timeout(remaining, self.ack_receiver.recv()).await {
                 Ok(Some(ack)) if ack.checkpoint_id == checkpoint_id => {
+                    debug!(checkpoint_id, operator = %ack.operator_name, "received ack");
                     // Persist operator state
                     if self
                         .store

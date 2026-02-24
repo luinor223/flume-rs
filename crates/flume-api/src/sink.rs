@@ -25,7 +25,7 @@ impl<T: Debug + Send + 'static> Sink<T> for PrintSink {
         &mut self,
         record: Record<T>,
     ) -> Pin<Box<dyn Future<Output = FlumeResult<()>> + Send + '_>> {
-        println!("[{}] {:?}", self.prefix, record.value);
+        tracing::info!(prefix = %self.prefix, value = ?record.value, "sink output");
         Box::pin(async { Ok(()) })
     }
 

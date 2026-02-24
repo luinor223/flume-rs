@@ -2,6 +2,7 @@
 
 use flume_core::{FlumeError, FlumeResult};
 use tokio::task::JoinHandle;
+use tracing::{debug, error, info};
 
 /// Manages spawned async tasks and their lifecycle.
 pub struct Scheduler {
@@ -22,6 +23,7 @@ impl Scheduler {
         future: impl std::future::Future<Output = FlumeResult<()>> + Send + 'static,
     ) {
         let name = name.into();
+        info!(task = %name, "spawning task");
         let handle = tokio::spawn(future);
         self.handles.push((name, handle));
     }
@@ -46,13 +48,17 @@ impl Scheduler {
 
         for (name, handle) in self.handles {
             match handle.await {
-                Ok(Ok(())) => {}
+                Ok(Ok(())) => {
+                    debug!(task = %name, "task completed successfully");
+                }
                 Ok(Err(e)) => {
+                    error!(task = %name, error = %e, "task failed");
                     if first_error.is_none() {
                         first_error = Some(e);
                     }
                 }
                 Err(join_err) => {
+                    error!(task = %name, error = %join_err, "task panicked");
                     if first_error.is_none() {
                         first_error = Some(FlumeError::Execution(format!(
                             "task '{name}' panicked: {join_err}"

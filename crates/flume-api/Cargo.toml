@@ -9,3 +9,5 @@ license.workspace = true
 flume-core = { path = "../flume-core", version = "0.1.0" }
 flume-runtime = { path = "../flume-runtime", version = "0.1.0" }
 tokio = { version = "1", features = ["sync", "rt", "macros"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
