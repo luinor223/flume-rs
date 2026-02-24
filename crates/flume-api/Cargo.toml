@@ -11,3 +11,8 @@ flume-runtime = { path = "../flume-runtime", version = "0.1.0" }
 tokio = { version = "1", features = ["sync", "rt", "macros"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.16", optional = true }
+
+[features]
+prometheus = ["metrics-exporter-prometheus"]

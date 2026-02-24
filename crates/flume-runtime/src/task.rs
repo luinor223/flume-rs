@@ -1,6 +1,7 @@
 //! TaskExecutor — the async hot loop that drives an operator.
 
 use flume_core::{Collector, FlumeResult, Operator, StreamElement};
+use metrics::{counter, histogram};
 use tokio::sync::mpsc;
 use tracing::{debug, info, info_span, trace, Instrument};
 
@@ -53,6 +54,7 @@ where
     /// Run the hot loop until the input channel is closed.
     pub async fn run(mut self) -> FlumeResult<()> {
         let span = info_span!("task", name = %self.name);
+        let task_name = self.name.clone();
         async {
             info!("task started");
             let mut records_processed: u64 = 0;
@@ -60,8 +62,14 @@ where
                 match element {
                     StreamElement::Record(record) => {
                         trace!(timestamp = record.timestamp.as_millis(), "processing record");
+                        let start = std::time::Instant::now();
                         self.operator
                             .process_record(record, self.collector.as_mut())?;
+                        let elapsed_us = start.elapsed().as_micros() as f64;
+                        counter!("flume.records.processed", "task" => task_name.clone())
+                            .increment(1);
+                        histogram!("flume.record.latency_us", "task" => task_name.clone())
+                            .record(elapsed_us);
                         records_processed += 1;
                     }
                     StreamElement::Watermark(wm) => {
@@ -76,6 +84,7 @@ where
                     }
                 }
             }
+            counter!("flume.tasks.completed").increment(1);
             info!(records_processed, "task finished");
             Ok(())
         }
@@ -160,6 +169,57 @@ mod tests {
         );
 
         handle.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_task_executor_records_metrics() {
+        let recorder = metrics_util::debugging::DebuggingRecorder::new();
+        let snapshotter = recorder.snapshotter();
+        recorder.install().unwrap();
+
+        let (input_tx, input_rx) = tokio::sync::mpsc::channel(16);
+        let (output_collector, mut output_rx) = operator_channel::<i32>(16);
+
+        let executor = TaskExecutor::new_mpsc(
+            "metrics-test",
+            MapOperator::new(|x: i32| x + 1),
+            input_rx,
+            Box::new(output_collector),
+        );
+
+        let handle = tokio::spawn(executor.run());
+
+        input_tx
+            .send(StreamElement::Record(Record::new(
+                1,
+                EventTimestamp::new(100),
+            )))
+            .await
+            .unwrap();
+        // Drain output so the task doesn't block.
+        let _ = output_rx.recv().await;
+        drop(input_tx);
+        handle.await.unwrap().unwrap();
+
+        let snapshot = snapshotter.snapshot();
+        // Verify records.processed counter was incremented
+        let key = metrics_util::CompositeKey::new(
+            metrics_util::MetricKind::Counter,
+            metrics::Key::from_parts(
+                "flume.records.processed",
+                vec![metrics::Label::new("task", "metrics-test")],
+            ),
+        );
+        let counter_val = snapshot
+            .into_vec()
+            .into_iter()
+            .find(|(k, _, _, _)| *k == key)
+            .map(|(_, _, _, dv)| match dv {
+                metrics_util::debugging::DebugValue::Counter(v) => v,
+                _ => panic!("expected counter"),
+            })
+            .expect("counter not found");
+        assert_eq!(counter_val, 1);
     }
 
     #[tokio::test]

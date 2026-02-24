@@ -23,6 +23,18 @@ pub fn init_logging(json: bool) {
     }
 }
 
+/// Initialize Prometheus metrics exporter on the given bind address.
+///
+/// Starts an HTTP server serving `/metrics` in Prometheus exposition format.
+/// Requires the `prometheus` feature.
+#[cfg(feature = "prometheus")]
+pub fn init_metrics(bind: std::net::SocketAddr) {
+    metrics_exporter_prometheus::PrometheusBuilder::new()
+        .with_http_listener(bind)
+        .install()
+        .expect("failed to install Prometheus exporter");
+}
+
 /// The entry point for building and executing a stream processing pipeline.
 pub struct StreamExecutionEnvironment {
     pub(crate) config: PipelineConfig,

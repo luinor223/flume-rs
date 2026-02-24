@@ -1,6 +1,7 @@
 //! Task scheduler — spawns and manages operator task lifecycles.
 
 use flume_core::{FlumeError, FlumeResult};
+use metrics::{counter, gauge};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info};
 
@@ -24,6 +25,8 @@ impl Scheduler {
     ) {
         let name = name.into();
         info!(task = %name, "spawning task");
+        counter!("flume.tasks.spawned").increment(1);
+        gauge!("flume.tasks.active").increment(1.0);
         let handle = tokio::spawn(future);
         self.handles.push((name, handle));
     }
@@ -49,15 +52,20 @@ impl Scheduler {
         for (name, handle) in self.handles {
             match handle.await {
                 Ok(Ok(())) => {
+                    gauge!("flume.tasks.active").decrement(1.0);
                     debug!(task = %name, "task completed successfully");
                 }
                 Ok(Err(e)) => {
+                    gauge!("flume.tasks.active").decrement(1.0);
+                    counter!("flume.tasks.failed").increment(1);
                     error!(task = %name, error = %e, "task failed");
                     if first_error.is_none() {
                         first_error = Some(e);
                     }
                 }
                 Err(join_err) => {
+                    gauge!("flume.tasks.active").decrement(1.0);
+                    counter!("flume.tasks.failed").increment(1);
                     error!(task = %name, error = %join_err, "task panicked");
                     if first_error.is_none() {
                         first_error = Some(FlumeError::Execution(format!(

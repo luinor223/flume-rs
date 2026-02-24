@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use flume_core::{CheckpointAck, CheckpointBarrier, EventTimestamp};
+use metrics::{counter, histogram};
 use tokio::sync::mpsc;
 use tracing::{debug, info};
 
@@ -64,12 +65,17 @@ impl CheckpointCoordinator {
             self.next_checkpoint_id += 1;
 
             info!(checkpoint_id = cp_id, "starting checkpoint");
+            let start = std::time::Instant::now();
             match self.trigger_and_collect(cp_id).await {
                 CheckpointResult::Success => {
+                    let duration_ms = start.elapsed().as_millis() as f64;
+                    counter!("flume.checkpoints.completed").increment(1);
+                    histogram!("flume.checkpoint.duration_ms").record(duration_ms);
                     info!(checkpoint_id = cp_id, "checkpoint completed");
                     let _ = self.store.cleanup(self.max_retained).await;
                 }
                 CheckpointResult::Timeout => {
+                    counter!("flume.checkpoints.timed_out").increment(1);
                     info!(checkpoint_id = cp_id, "checkpoint timed out");
                 }
                 CheckpointResult::PipelineShutdown => {

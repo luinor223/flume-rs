@@ -12,6 +12,8 @@ mod windowed;
 
 pub use datastream::DataStream;
 pub use environment::{StreamExecutionEnvironment, init_logging};
+#[cfg(feature = "prometheus")]
+pub use environment::init_metrics;
 pub use sink::{CollectSink, PrintSink};
 pub use source::{InMemorySource, TimestampedSource};
 pub use windowed::WindowedStream;
