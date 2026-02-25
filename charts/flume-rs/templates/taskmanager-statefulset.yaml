@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "flume-rs.fullname" . }}-tm
+  labels:
+    {{- include "flume-rs.taskmanager.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "flume-rs.fullname" . }}-tm-headless
+  replicas: {{ .Values.taskmanager.replicas }}
+  selector:
+    matchLabels:
+      {{- include "flume-rs.taskmanager.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.taskmanager.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "flume-rs.taskmanager.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "flume-rs.serviceAccountName" . }}
+      {{- with .Values.taskmanager.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: taskmanager
+          image: {{ include "flume-rs.taskmanager.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--bind"
+            - "0.0.0.0:{{ .Values.taskmanager.grpcPort }}"
+            - "--jm-address"
+            - "http://{{ include "flume-rs.fullname" . }}-jm:{{ .Values.jobmanager.grpcPort }}"
+            - "--slots"
+            - {{ .Values.taskmanager.slots | quote }}
+            - "--heartbeat-interval"
+            - {{ .Values.taskmanager.heartbeatInterval | quote }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.taskmanager.grpcPort }}
+              protocol: TCP
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: FLUME_TM_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- with .Values.taskmanager.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.taskmanager.resources | nindent 12 }}
+          {{- with .Values.taskmanager.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/flume
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "flume-rs.fullname" . }}-config
+      {{- with .Values.taskmanager.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.taskmanager.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.taskmanager.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

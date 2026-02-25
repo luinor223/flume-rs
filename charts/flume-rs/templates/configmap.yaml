@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "flume-rs.fullname" . }}-config
+  labels:
+    {{- include "flume-rs.labels" . | nindent 4 }}
+data:
+  flume.toml: |
+    {{- .Values.flumeConfig | nindent 4 }}

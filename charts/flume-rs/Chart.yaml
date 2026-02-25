@@ -1,0 +1,13 @@
+apiVersion: v2
+name: flume-rs
+description: A Helm chart for flume-rs distributed stream processing engine
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - streaming
+  - stream-processing
+  - rust
+  - real-time
+maintainers:
+  - name: flume-rs

@@ -1,0 +1,43 @@
+---
+# JobManager service — exposes REST API and gRPC for TM registration.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "flume-rs.fullname" . }}-jm
+  labels:
+    {{- include "flume-rs.jobmanager.labels" . | nindent 4 }}
+  {{- with .Values.jobmanager.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.jobmanager.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.jobmanager.restPort }}
+      targetPort: http
+      protocol: TCP
+    - name: grpc
+      port: {{ .Values.jobmanager.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    {{- include "flume-rs.jobmanager.selectorLabels" . | nindent 4 }}
+---
+# TaskManager headless service — enables stable DNS names for TM-to-TM discovery.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "flume-rs.fullname" . }}-tm-headless
+  labels:
+    {{- include "flume-rs.taskmanager.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: grpc
+      port: {{ .Values.taskmanager.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    {{- include "flume-rs.taskmanager.selectorLabels" . | nindent 4 }}

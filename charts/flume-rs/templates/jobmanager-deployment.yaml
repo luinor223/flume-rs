@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "flume-rs.fullname" . }}-jm
+  labels:
+    {{- include "flume-rs.jobmanager.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.jobmanager.replicas }}
+  selector:
+    matchLabels:
+      {{- include "flume-rs.jobmanager.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.jobmanager.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "flume-rs.jobmanager.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "flume-rs.serviceAccountName" . }}
+      {{- with .Values.jobmanager.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: jobmanager
+          image: {{ include "flume-rs.jobmanager.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--mode"
+            - "jm"
+            - "--config"
+            - "/etc/flume/flume.toml"
+            - "--bind"
+            - "0.0.0.0:{{ .Values.jobmanager.restPort }}"
+            - "--grpc-port"
+            - {{ .Values.jobmanager.grpcPort | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.jobmanager.restPort }}
+              protocol: TCP
+            - name: grpc
+              containerPort: {{ .Values.jobmanager.grpcPort }}
+              protocol: TCP
+          {{- with .Values.jobmanager.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.jobmanager.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.jobmanager.resources | nindent 12 }}
+          {{- with .Values.jobmanager.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: RUST_LOG
+              value: "info"
+            {{- with .Values.jobmanager.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/flume
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "flume-rs.fullname" . }}-config
+      {{- with .Values.jobmanager.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jobmanager.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.jobmanager.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
