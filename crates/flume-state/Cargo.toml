@@ -11,7 +11,7 @@ flume-core = { path = "../flume-core", version = "0.1.0" }
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 proptest = "1"
 
 [[bench]]
