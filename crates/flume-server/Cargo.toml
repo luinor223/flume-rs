@@ -40,3 +40,7 @@ path = "src/bin/server.rs"
 name = "flume-cli"
 path = "src/bin/cli.rs"
 required-features = ["cli"]
+
+[[bin]]
+name = "flume-tm"
+path = "src/bin/tm.rs"

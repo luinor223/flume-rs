@@ -59,3 +59,19 @@ pub struct HealthResponse {
     pub registered_jobs: usize,
     pub active_jobs: usize,
 }
+
+/// Summary of a registered TaskManager.
+#[derive(Debug, Serialize)]
+pub struct TaskManagerSummary {
+    pub id: String,
+    pub address: String,
+    pub total_slots: usize,
+    pub used_slots: usize,
+    pub registered_jobs: Vec<String>,
+}
+
+/// Response body for listing TaskManagers.
+#[derive(Debug, Serialize)]
+pub struct TaskManagerListResponse {
+    pub task_managers: Vec<TaskManagerSummary>,
+}

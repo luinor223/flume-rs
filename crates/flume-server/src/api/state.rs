@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use flume_core::PipelineConfig;
+use flume_network::resource_manager::ResourceManager;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -18,6 +19,8 @@ pub struct ServerInner {
     pub registry: JobRegistry,
     pub jobs: HashMap<Uuid, JobHandle>,
     pub config: PipelineConfig,
+    /// Resource manager for tracking registered TaskManagers (JM mode only).
+    pub resource_manager: Option<Arc<Mutex<ResourceManager>>>,
 }
 
 impl ServerInner {
@@ -26,6 +29,7 @@ impl ServerInner {
             registry,
             jobs: HashMap::new(),
             config,
+            resource_manager: None,
         }
     }
 }

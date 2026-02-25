@@ -13,6 +13,7 @@ pub fn router(state: ServerState) -> Router {
         .route("/api/v1/jobs", get(handlers::list_jobs))
         .route("/api/v1/jobs/{id}", get(handlers::get_job))
         .route("/api/v1/jobs/{id}/cancel", post(handlers::cancel_job))
+        .route("/api/v1/taskmanagers", get(handlers::list_taskmanagers))
         .route("/health/live", get(handlers::liveness))
         .route("/health/ready", get(handlers::readiness))
         .with_state(state)

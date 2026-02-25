@@ -10,7 +10,7 @@ use uuid::Uuid;
 use super::error::ApiError;
 use super::models::{
     CancelJobResponse, HealthResponse, JobDetailResponse, JobListResponse, JobSummary,
-    SubmitJobRequest, SubmitJobResponse,
+    SubmitJobRequest, SubmitJobResponse, TaskManagerListResponse, TaskManagerSummary,
 };
 use super::state::ServerState;
 use crate::job::{JobHandle, JobStatus};
@@ -139,6 +139,32 @@ pub async fn readiness(State(state): State<ServerState>) -> Json<HealthResponse>
         registered_jobs: inner.registry.len(),
         active_jobs: active,
     })
+}
+
+/// GET /api/v1/taskmanagers — list registered TaskManagers.
+pub async fn list_taskmanagers(
+    State(state): State<ServerState>,
+) -> Result<Json<TaskManagerListResponse>, ApiError> {
+    let inner = state.lock().await;
+    let rm = inner
+        .resource_manager
+        .as_ref()
+        .ok_or_else(|| ApiError::bad_request("not running in JM mode"))?;
+
+    let rm_guard = rm.lock().await;
+    let task_managers = rm_guard
+        .list()
+        .iter()
+        .map(|info| TaskManagerSummary {
+            id: info.id.clone(),
+            address: info.address.clone(),
+            total_slots: info.num_slots as usize,
+            used_slots: info.slots_in_use as usize,
+            registered_jobs: info.registered_jobs.clone(),
+        })
+        .collect();
+
+    Ok(Json(TaskManagerListResponse { task_managers }))
 }
 
 /// Background task that polls finished job handles and updates their status.
