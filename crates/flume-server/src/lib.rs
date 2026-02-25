@@ -1,5 +1,6 @@
 //! Flume server — HTTP-based job management for the flume-rs streaming engine.
 
+pub mod api;
 pub mod job;
 pub mod registry;
 
