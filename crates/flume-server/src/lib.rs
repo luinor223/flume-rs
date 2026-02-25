@@ -5,6 +5,7 @@ pub mod cli;
 pub mod config;
 pub mod job;
 pub mod registry;
+pub mod tm;
 
 pub use job::{JobHandle, JobStatus};
 pub use registry::JobRegistry;

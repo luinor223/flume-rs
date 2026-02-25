@@ -10,6 +10,7 @@ pub mod jm_service;
 pub mod network_collector;
 pub mod network_input;
 pub mod resource_manager;
+pub mod slot_manager;
 pub mod tm_client;
 pub mod tm_service;
 
