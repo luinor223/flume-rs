@@ -133,11 +133,7 @@ pub async fn liveness() -> StatusCode {
 /// GET /health/ready — readiness probe with stats.
 pub async fn readiness(State(state): State<ServerState>) -> Json<HealthResponse> {
     let inner = state.lock().await;
-    let active = inner
-        .jobs
-        .values()
-        .filter(|h| !h.is_terminal())
-        .count();
+    let active = inner.jobs.values().filter(|h| !h.is_terminal()).count();
     Json(HealthResponse {
         status: "ready".to_string(),
         registered_jobs: inner.registry.len(),

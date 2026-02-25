@@ -83,10 +83,7 @@ pub async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             print_response(resp, cli.format).await?;
         }
         Command::List => {
-            let resp = client
-                .get(format!("{base}/api/v1/jobs"))
-                .send()
-                .await?;
+            let resp = client.get(format!("{base}/api/v1/jobs")).send().await?;
             print_response(resp, cli.format).await?;
         }
         Command::Cancel { job_id } => {
@@ -97,10 +94,7 @@ pub async fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             print_response(resp, cli.format).await?;
         }
         Command::Health => {
-            let resp = client
-                .get(format!("{base}/health/ready"))
-                .send()
-                .await?;
+            let resp = client.get(format!("{base}/health/ready")).send().await?;
             print_response(resp, cli.format).await?;
         }
     }
@@ -228,13 +222,9 @@ mod tests {
 
     #[test]
     fn test_custom_endpoint() {
-        let cli = Cli::try_parse_from([
-            "flume-cli",
-            "--endpoint",
-            "http://localhost:9090",
-            "health",
-        ])
-        .unwrap();
+        let cli =
+            Cli::try_parse_from(["flume-cli", "--endpoint", "http://localhost:9090", "health"])
+                .unwrap();
         assert_eq!(cli.endpoint, "http://localhost:9090");
     }
 

@@ -22,7 +22,9 @@ uuid = { version = "1", features = ["v4", "serde"] }
 toml = "0.8"
 
 [dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
 tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
 
 [features]
 cli = ["reqwest"]

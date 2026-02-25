@@ -25,8 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging(false);
     let args = Args::parse();
 
-    let mut server_config =
-        load_server_config(args.config.as_deref().map(std::path::Path::new))?;
+    let mut server_config = load_server_config(args.config.as_deref().map(std::path::Path::new))?;
     if let Some(bind) = args.bind {
         server_config.bind_addr = bind;
     }
@@ -60,9 +59,8 @@ async fn shutdown_signal() {
     let ctrl_c = tokio::signal::ctrl_c();
     #[cfg(unix)]
     {
-        let mut sigterm =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                .expect("failed to install SIGTERM handler");
+        let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler");
         tokio::select! {
             _ = ctrl_c => { info!("received SIGINT"); }
             _ = sigterm.recv() => { info!("received SIGTERM"); }

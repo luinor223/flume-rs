@@ -35,9 +35,8 @@ impl JobRegistry {
         F: Fn(PipelineConfig, CancellationToken) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = FlumeResult<()>> + Send + 'static,
     {
-        let factory = Arc::new(move |config, cancel| {
-            Box::pin(factory(config, cancel)) as BoxJobFuture
-        });
+        let factory =
+            Arc::new(move |config, cancel| Box::pin(factory(config, cancel)) as BoxJobFuture);
         self.factories.insert(name.into(), factory);
     }
 

@@ -74,7 +74,10 @@ mod tests {
     fn test_defaults() {
         let config = ServerConfig::default();
         assert_eq!(config.bind_addr, "0.0.0.0:8080".parse().unwrap());
-        assert_eq!(config.checkpoint_dir, PathBuf::from("/tmp/flume/checkpoints"));
+        assert_eq!(
+            config.checkpoint_dir,
+            PathBuf::from("/tmp/flume/checkpoints")
+        );
     }
 
     #[test]
