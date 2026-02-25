@@ -92,19 +92,9 @@ Service account name.
 {{- end }}
 
 {{/*
-JobManager image.
+Image reference.
 */}}
-{{- define "flume-rs.jobmanager.image" -}}
-{{- $repo := .Values.jobmanager.image.repository | default (printf "%s/flume-server" .Values.image.registry) -}}
+{{- define "flume-rs.image" -}}
 {{- $tag := .Values.image.tag | default .Chart.AppVersion -}}
-{{- printf "%s:%s" $repo $tag -}}
-{{- end }}
-
-{{/*
-TaskManager image.
-*/}}
-{{- define "flume-rs.taskmanager.image" -}}
-{{- $repo := .Values.taskmanager.image.repository | default (printf "%s/flume-tm" .Values.image.registry) -}}
-{{- $tag := .Values.image.tag | default .Chart.AppVersion -}}
-{{- printf "%s:%s" $repo $tag -}}
+{{- printf "%s:%s" .Values.image.repository $tag -}}
 {{- end }}

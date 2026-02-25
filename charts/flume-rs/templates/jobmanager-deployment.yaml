@@ -31,8 +31,9 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: jobmanager
-          image: {{ include "flume-rs.jobmanager.image" . }}
+          image: {{ include "flume-rs.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["jobmanager"]
           args:
             - "--mode"
             - "jm"

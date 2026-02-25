@@ -6,8 +6,7 @@ fullnameOverride: ""
 
 # -- Docker image settings
 image:
-  # -- Container registry
-  registry: ghcr.io
+  repository: ghcr.io/luinor223/flume
   # -- Image pull policy
   pullPolicy: IfNotPresent
   # -- Overrides the image tag (default is the chart appVersion)
@@ -17,9 +16,6 @@ imagePullSecrets: []
 
 # -- JobManager configuration
 jobmanager:
-  # -- Image repository for the JobManager
-  image:
-    repository: ghcr.io/luinor223/flume-server
   replicas: 1
   # -- HTTP REST port
   restPort: 8080
@@ -69,9 +65,6 @@ jobmanager:
 
 # -- TaskManager configuration
 taskmanager:
-  # -- Image repository for the TaskManager
-  image:
-    repository: ghcr.io/luinor223/flume-tm
   replicas: 3
   # -- Number of execution slots per TaskManager
   slots: 4
