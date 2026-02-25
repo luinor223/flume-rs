@@ -1,0 +1,37 @@
+syntax = "proto3";
+package flume.taskmanager;
+
+service TaskManagerService {
+    rpc DeploySubtask(DeployRequest) returns (DeployResponse);
+    rpc CancelSubtask(CancelRequest) returns (CancelResponse);
+    rpc InjectCheckpointBarrier(BarrierRequest) returns (Empty);
+}
+
+message DeployRequest {
+    string job_id = 1;
+    string job_name = 2;
+    bytes pipeline_config = 3;
+    bytes physical_graph = 4;
+    string subtask_id = 5;
+}
+
+message DeployResponse {
+    bool accepted = 1;
+    string message = 2;
+}
+
+message CancelRequest {
+    string job_id = 1;
+    string subtask_id = 2;
+}
+
+message CancelResponse {
+    bool cancelled = 1;
+}
+
+message BarrierRequest {
+    string job_id = 1;
+    uint64 checkpoint_id = 2;
+}
+
+message Empty {}

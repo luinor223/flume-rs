@@ -1,0 +1,47 @@
+syntax = "proto3";
+package flume.jobmanager;
+
+service JobManagerService {
+    rpc RegisterTaskManager(RegisterRequest) returns (RegisterResponse);
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+    rpc AcknowledgeCheckpoint(CheckpointAck) returns (Empty);
+    rpc ReportTaskStatus(TaskStatusReport) returns (Empty);
+}
+
+message RegisterRequest {
+    string task_manager_id = 1;
+    string address = 2;
+    uint32 num_slots = 3;
+    repeated string registered_jobs = 4;
+}
+
+message RegisterResponse {
+    bool accepted = 1;
+    string message = 2;
+}
+
+message HeartbeatRequest {
+    string task_manager_id = 1;
+    uint32 slots_available = 2;
+    uint32 slots_in_use = 3;
+}
+
+message HeartbeatResponse {
+    bool should_continue = 1;
+}
+
+message CheckpointAck {
+    uint64 checkpoint_id = 1;
+    string job_id = 2;
+    string subtask_id = 3;
+    bytes state_bytes = 4;
+}
+
+message TaskStatusReport {
+    string task_manager_id = 1;
+    string subtask_id = 2;
+    string status = 3;
+    string error_message = 4;
+}
+
+message Empty {}

@@ -8,6 +8,7 @@ members = [
     "crates/flume-connectors/flume-connector-file",
     "crates/flume-connectors/flume-connector-tcp",
     "crates/flume-connectors/flume-connector-kafka",
+    "crates/flume-network",
     "crates/flume-server",
 ]
 

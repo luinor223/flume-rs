@@ -1,0 +1,21 @@
+[package]
+name = "flume-network"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+flume-core = { path = "../flume-core", version = "0.1.0" }
+flume-runtime = { path = "../flume-runtime", version = "0.1.0" }
+bincode = "1"
+prost = "0.13"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }
+tokio-stream = "0.1"
+tonic = "0.12"
+tracing = "0.1"
+uuid = { version = "1", features = ["v4", "serde"] }
+
+[build-dependencies]
+tonic-build = "0.12"
