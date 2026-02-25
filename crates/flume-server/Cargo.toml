@@ -10,7 +10,7 @@ flume-core = { path = "../flume-core", version = "0.1.0" }
 flume-api = { path = "../flume-api", version = "0.1.0" }
 flume-network = { path = "../flume-network", version = "0.1.0" }
 flume-runtime = { path = "../flume-runtime", version = "0.1.0" }
-tonic = "0.12"
+tonic = "0.14"
 tokio-stream = "0.1"
 axum = { version = "0.8", features = ["json"] }
 clap = { version = "4", features = ["derive", "env"] }
