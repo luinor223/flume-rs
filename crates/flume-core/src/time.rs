@@ -3,7 +3,9 @@
 use std::fmt;
 
 /// Millisecond-precision timestamp representing when an event occurred in the real world.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct EventTimestamp(pub u64);
 
 impl EventTimestamp {

@@ -141,7 +141,8 @@ mod tests {
 
     #[test]
     fn test_serde_roundtrip_stream_element() {
-        let elem = StreamElement::Record(Record::new("hello".to_string(), EventTimestamp::new(500)));
+        let elem =
+            StreamElement::Record(Record::new("hello".to_string(), EventTimestamp::new(500)));
         let bytes = bincode::serialize(&elem).unwrap();
         let elem2: StreamElement<String> = bincode::deserialize(&bytes).unwrap();
         assert!(matches!(elem2, StreamElement::Record(r) if r.value == "hello"));
@@ -149,7 +150,9 @@ mod tests {
         let wm = StreamElement::<i32>::Watermark(Watermark::new(EventTimestamp::new(200)));
         let bytes = bincode::serialize(&wm).unwrap();
         let wm2: StreamElement<i32> = bincode::deserialize(&bytes).unwrap();
-        assert!(matches!(wm2, StreamElement::Watermark(w) if w.timestamp == EventTimestamp::new(200)));
+        assert!(
+            matches!(wm2, StreamElement::Watermark(w) if w.timestamp == EventTimestamp::new(200))
+        );
 
         let barrier = StreamElement::<i32>::CheckpointBarrier(CheckpointBarrier::new(
             7,

@@ -3,8 +3,12 @@
 //! Provides gRPC service definitions and data exchange protocols
 //! for cross-TaskManager communication.
 
+pub mod connection_manager;
+pub mod exchange;
 pub mod jm_client;
 pub mod jm_service;
+pub mod network_collector;
+pub mod network_input;
 pub mod resource_manager;
 pub mod tm_client;
 pub mod tm_service;

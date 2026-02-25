@@ -126,10 +126,7 @@ pub fn schedule(
     // Generate physical edges.
     let edges = generate_edges(graph, &assignments);
 
-    Ok(PhysicalGraph {
-        assignments,
-        edges,
-    })
+    Ok(PhysicalGraph { assignments, edges })
 }
 
 /// Build a queue of (task_manager_id, slot_index) pairs ordered by strategy.
@@ -142,7 +139,7 @@ fn build_slot_queue(
         SchedulingStrategy::Spread => {
             // Round-robin: interleave slots from different TMs.
             // Sort by most available first so spread is even.
-            offers.sort_by(|a, b| b.available().cmp(&a.available()));
+            offers.sort_by_key(|o| std::cmp::Reverse(o.available()));
             let mut queues: Vec<Vec<(TaskManagerId, usize)>> = offers
                 .iter()
                 .map(|o| {
@@ -168,13 +165,10 @@ fn build_slot_queue(
         }
         SchedulingStrategy::Pack => {
             // Fill TMs in order (least available first = most packed).
-            offers.sort_by(|a, b| a.available().cmp(&b.available()));
+            offers.sort_by_key(|o| o.available());
             offers
                 .iter()
-                .flat_map(|o| {
-                    (o.used_slots..o.total_slots)
-                        .map(|i| (o.task_manager_id.clone(), i))
-                })
+                .flat_map(|o| (o.used_slots..o.total_slots).map(|i| (o.task_manager_id.clone(), i)))
                 .collect()
         }
     }
@@ -292,8 +286,8 @@ mod tests {
             .count();
         // With spread on 2 TMs of 4 slots each and 7 subtasks,
         // expect roughly even distribution.
-        assert!(tm1_count >= 3 && tm1_count <= 4);
-        assert!(tm2_count >= 3 && tm2_count <= 4);
+        assert!((3..=4).contains(&tm1_count));
+        assert!((3..=4).contains(&tm2_count));
     }
 
     #[test]
