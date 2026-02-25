@@ -10,11 +10,11 @@ flume-core = { path = "../flume-core", version = "0.1.0" }
 flume-api = { path = "../flume-api", version = "0.1.0" }
 flume-network = { path = "../flume-network", version = "0.1.0" }
 flume-runtime = { path = "../flume-runtime", version = "0.1.0" }
-tonic = "0.12"
+tonic = "0.14"
 tokio-stream = "0.1"
 axum = { version = "0.8", features = ["json"] }
 clap = { version = "4", features = ["derive", "env"] }
-reqwest = { version = "0.12", features = ["json"], optional = true }
+reqwest = { version = "0.13", features = ["json"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["sync", "rt", "macros", "signal", "rt-multi-thread", "time"] }
@@ -22,10 +22,10 @@ tokio-util = "0.7"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-toml = "0.8"
+toml = "1.0"
 
 [dev-dependencies]
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 tempfile = "3"
 uuid = { version = "1", features = ["v4"] }
 

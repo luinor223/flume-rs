@@ -22,8 +22,8 @@ core_affinity = { version = "0.8", optional = true }
 [dev-dependencies]
 bitcode = { version = "0.6", features = ["serde"] }
 tempfile = "3"
-criterion = "0.5"
-metrics-util = "0.18"
+criterion = "0.8"
+metrics-util = "0.19"
 tokio = { version = "1", features = ["sync", "rt", "macros", "time", "fs", "rt-multi-thread"] }
 
 [[bench]]
