@@ -2,11 +2,13 @@
 
 use std::collections::VecDeque;
 
+use serde::{Deserialize, Serialize};
+
 /// Unique identifier for a node in the logical graph.
 pub type NodeId = usize;
 
 /// The kind of processing a node performs.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeKind {
     Source,
     Operator,
@@ -14,7 +16,7 @@ pub enum NodeKind {
 }
 
 /// How records are routed between parallel subtasks.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PartitionStrategy {
     /// 1:1 index mapping between upstream and downstream subtasks.
     Forward,
@@ -27,7 +29,7 @@ pub enum PartitionStrategy {
 }
 
 /// A node in the logical graph.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogicalNode {
     pub id: NodeId,
     pub name: String,
@@ -36,7 +38,7 @@ pub struct LogicalNode {
 }
 
 /// A directed edge in the logical graph.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogicalEdge {
     pub from: NodeId,
     pub to: NodeId,
@@ -44,7 +46,7 @@ pub struct LogicalEdge {
 }
 
 /// The directed acyclic graph representing a pipeline before execution.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct LogicalGraph {
     pub nodes: Vec<LogicalNode>,
     pub edges: Vec<LogicalEdge>,

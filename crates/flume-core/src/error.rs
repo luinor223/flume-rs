@@ -43,6 +43,10 @@ pub enum FlumeError {
     #[error("execution error: {0}")]
     Execution(String),
 
+    /// Network / gRPC errors.
+    #[error("network error: {0}")]
+    Network(String),
+
     /// General I/O errors.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),

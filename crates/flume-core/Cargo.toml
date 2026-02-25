@@ -10,5 +10,6 @@ serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 
 [dev-dependencies]
+bincode = "1"
 proptest = "1"
 toml = "0.8"
