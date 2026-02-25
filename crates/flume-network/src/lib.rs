@@ -3,6 +3,8 @@
 //! Provides gRPC service definitions and data exchange protocols
 //! for cross-TaskManager communication.
 
+pub mod resource_manager;
+
 pub mod proto {
     pub mod jobmanager {
         tonic::include_proto!("flume.jobmanager");
