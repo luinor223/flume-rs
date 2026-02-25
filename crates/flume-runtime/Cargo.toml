@@ -20,7 +20,7 @@ crossbeam-utils = "0.8"
 core_affinity = { version = "0.8", optional = true }
 
 [dev-dependencies]
-bincode = "1"
+bitcode = { version = "0.6", features = ["serde"] }
 tempfile = "3"
 criterion = "0.5"
 metrics-util = "0.18"

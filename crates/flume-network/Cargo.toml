@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 flume-core = { path = "../flume-core", version = "0.1.0" }
 flume-runtime = { path = "../flume-runtime", version = "0.1.0" }
-bincode = "1"
+bitcode = { version = "0.6", features = ["serde"] }
 prost = "0.13"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }

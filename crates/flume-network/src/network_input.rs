@@ -1,7 +1,7 @@
 //! Network input that deserializes batches received from gRPC into `StreamElement<T>`.
 //!
 //! This is the "read side" of the network boundary. It consumes `DataBatch`
-//! proto messages, deserializes the payload using bincode, and yields
+//! proto messages, deserializes the payload using bitcode, and yields
 //! `StreamElement<T>` values.
 
 use std::collections::VecDeque;
@@ -65,7 +65,7 @@ impl<T: DeserializeOwned + Send + 'static> NetworkInput<T> {
                     break;
                 }
 
-                match bincode::deserialize::<StreamElement<T>>(&payload[offset..offset + len]) {
+                match bitcode::deserialize::<StreamElement<T>>(&payload[offset..offset + len]) {
                     Ok(elem) => self.element_buffer.push_back(elem),
                     Err(e) => {
                         tracing::warn!(error = %e, "failed to deserialize network element");
@@ -87,7 +87,7 @@ mod tests {
     fn serialize_elements<T: Serialize>(elements: &[StreamElement<T>]) -> Vec<u8> {
         let mut buf = Vec::new();
         for elem in elements {
-            let bytes = bincode::serialize(elem).unwrap();
+            let bytes = bitcode::serialize(elem).unwrap();
             let len = bytes.len() as u32;
             buf.extend_from_slice(&len.to_le_bytes());
             buf.extend_from_slice(&bytes);

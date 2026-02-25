@@ -374,8 +374,8 @@ mod tests {
         let slots = two_tm_slots();
         let pg = schedule(&graph, &slots, SchedulingStrategy::Spread).unwrap();
 
-        let bytes = bincode::serialize(&pg).unwrap();
-        let pg2: PhysicalGraph = bincode::deserialize(&bytes).unwrap();
+        let bytes = bitcode::serialize(&pg).unwrap();
+        let pg2: PhysicalGraph = bitcode::deserialize(&bytes).unwrap();
         assert_eq!(pg2.assignments.len(), pg.assignments.len());
         assert_eq!(pg2.edges.len(), pg.edges.len());
     }

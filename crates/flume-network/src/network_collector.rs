@@ -19,7 +19,7 @@ use crate::proto::exchange::DataBatch;
 /// them as `DataBatch` proto messages to a gRPC outbound channel.
 ///
 /// This is the "write side" of the network boundary. Records are serialized
-/// via bincode, batched, and sent when the batch is full or a barrier arrives.
+/// via bitcode, batched, and sent when the batch is full or a barrier arrives.
 pub struct NetworkCollector<T: Send + Serialize + 'static> {
     channel_id: String,
     batch_tx: mpsc::Sender<DataBatch>,
@@ -92,7 +92,7 @@ impl<T: Send + Serialize + 'static> NetworkCollector<T> {
 
     fn serialize_element(&mut self, element: &StreamElement<T>) -> FlumeResult<()> {
         let bytes =
-            bincode::serialize(element).map_err(|e| FlumeError::Serialization(e.to_string()))?;
+            bitcode::serialize(element).map_err(|e| FlumeError::Serialization(e.to_string()))?;
         // Length-prefix each serialized element for framing.
         let len = bytes.len() as u32;
         self.buffer.extend_from_slice(&len.to_le_bytes());
@@ -119,7 +119,7 @@ impl<T: Send + Serialize + 'static> Collector<T> for NetworkCollector<T> {
 
         let element = StreamElement::<T>::Watermark(watermark);
         let bytes =
-            bincode::serialize(&element).map_err(|e| FlumeError::Serialization(e.to_string()))?;
+            bitcode::serialize(&element).map_err(|e| FlumeError::Serialization(e.to_string()))?;
 
         let batch = DataBatch {
             channel_id: self.channel_id.clone(),

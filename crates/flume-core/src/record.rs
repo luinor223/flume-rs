@@ -132,8 +132,8 @@ mod tests {
     #[test]
     fn test_serde_roundtrip_record() {
         let r = Record::new(42i32, EventTimestamp::new(1000)).with_key(vec![1, 2]);
-        let bytes = bincode::serialize(&r).unwrap();
-        let r2: Record<i32> = bincode::deserialize(&bytes).unwrap();
+        let bytes = bitcode::serialize(&r).unwrap();
+        let r2: Record<i32> = bitcode::deserialize(&bytes).unwrap();
         assert_eq!(r2.value, 42);
         assert_eq!(r2.timestamp, EventTimestamp::new(1000));
         assert_eq!(r2.key, Some(vec![1, 2]));
@@ -143,13 +143,13 @@ mod tests {
     fn test_serde_roundtrip_stream_element() {
         let elem =
             StreamElement::Record(Record::new("hello".to_string(), EventTimestamp::new(500)));
-        let bytes = bincode::serialize(&elem).unwrap();
-        let elem2: StreamElement<String> = bincode::deserialize(&bytes).unwrap();
+        let bytes = bitcode::serialize(&elem).unwrap();
+        let elem2: StreamElement<String> = bitcode::deserialize(&bytes).unwrap();
         assert!(matches!(elem2, StreamElement::Record(r) if r.value == "hello"));
 
         let wm = StreamElement::<i32>::Watermark(Watermark::new(EventTimestamp::new(200)));
-        let bytes = bincode::serialize(&wm).unwrap();
-        let wm2: StreamElement<i32> = bincode::deserialize(&bytes).unwrap();
+        let bytes = bitcode::serialize(&wm).unwrap();
+        let wm2: StreamElement<i32> = bitcode::deserialize(&bytes).unwrap();
         assert!(
             matches!(wm2, StreamElement::Watermark(w) if w.timestamp == EventTimestamp::new(200))
         );
@@ -158,16 +158,16 @@ mod tests {
             7,
             EventTimestamp::new(300),
         ));
-        let bytes = bincode::serialize(&barrier).unwrap();
-        let barrier2: StreamElement<i32> = bincode::deserialize(&bytes).unwrap();
+        let bytes = bitcode::serialize(&barrier).unwrap();
+        let barrier2: StreamElement<i32> = bitcode::deserialize(&bytes).unwrap();
         assert!(matches!(barrier2, StreamElement::CheckpointBarrier(b) if b.checkpoint_id == 7));
     }
 
     #[test]
     fn test_serde_roundtrip_checkpoint_ack() {
         let ack = CheckpointAck::new(5, "op-1".to_string(), vec![10, 20, 30]);
-        let bytes = bincode::serialize(&ack).unwrap();
-        let ack2: CheckpointAck = bincode::deserialize(&bytes).unwrap();
+        let bytes = bitcode::serialize(&ack).unwrap();
+        let ack2: CheckpointAck = bitcode::deserialize(&bytes).unwrap();
         assert_eq!(ack2.checkpoint_id, 5);
         assert_eq!(ack2.operator_name, "op-1");
         assert_eq!(ack2.state_bytes, vec![10, 20, 30]);
