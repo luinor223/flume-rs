@@ -49,14 +49,13 @@ cargo run --release --bin flume-tm -- --jm-address http://127.0.0.1:50051 --slot
 ### Docker
 
 ```bash
-# Build images
-docker build --target flume-server -t flume-server .
-docker build --target flume-tm -t flume-tm .
-docker build --target flume-cli -t flume-cli .
+# Build
+docker build -t flume .
 
 # Run
-docker run -p 8080:8080 -p 50051:50051 flume-server --mode jm
-docker run flume-tm --jm-address http://host.docker.internal:50051
+docker run -p 8080:8080 -p 50051:50051 flume jobmanager --mode jm
+docker run flume taskmanager --jm-address http://host.docker.internal:50051
+docker run flume cli list
 ```
 
 ## Programming Model
