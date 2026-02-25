@@ -3,7 +3,11 @@
 //! Provides gRPC service definitions and data exchange protocols
 //! for cross-TaskManager communication.
 
+pub mod jm_client;
+pub mod jm_service;
 pub mod resource_manager;
+pub mod tm_client;
+pub mod tm_service;
 
 pub mod proto {
     pub mod jobmanager {
