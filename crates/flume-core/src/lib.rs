@@ -6,6 +6,7 @@
 mod config;
 mod error;
 mod operator;
+mod process;
 mod record;
 mod time;
 mod traits;
@@ -14,6 +15,9 @@ mod window;
 pub use config::{ChannelKind, PipelineConfig};
 pub use error::{FlumeError, FlumeResult};
 pub use operator::{FilterOperator, FlatMapOperator, MapOperator, WindowOperator};
+pub use process::{
+    KeyedProcessFunction, OnTimerContext, OutputTag, ProcessContext, ProcessFunction, TimerService,
+};
 pub use record::{CheckpointAck, CheckpointBarrier, Record, StreamElement, Watermark};
 pub use time::EventTimestamp;
 pub use traits::{
