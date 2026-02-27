@@ -9,6 +9,7 @@ mod operator;
 mod process;
 mod record;
 mod time;
+mod timer;
 mod traits;
 mod window;
 
@@ -19,6 +20,7 @@ pub use process::{
     KeyedProcessFunction, OnTimerContext, OutputTag, ProcessContext, ProcessFunction, TimerService,
 };
 pub use record::{CheckpointAck, CheckpointBarrier, Record, StreamElement, Watermark};
+pub use timer::{TimerQueue, TimerServiceImpl};
 pub use time::EventTimestamp;
 pub use traits::{
     Collector, ListState, MapState, Operator, Sink, Source, StateBackend, ValueState,
