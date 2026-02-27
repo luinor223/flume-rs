@@ -2,7 +2,8 @@
 
 use flume_core::{
     CheckpointBarrier, Collector, FilterOperator, FlatMapOperator, FlumeError, FlumeResult,
-    MapOperator, Operator, Record, Sink, Source, StreamElement, Watermark, WindowAssigner,
+    KeyedProcessFunction, KeyedProcessOperator, MapOperator, Operator, ProcessFunction,
+    ProcessOperator, Record, Sink, Source, StreamElement, Watermark, WindowAssigner,
 };
 use flume_runtime::channel::{OperatorInput, operator_channel_with_kind};
 use flume_runtime::dag::{NodeKind, PartitionStrategy};
@@ -133,6 +134,30 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         F: FnMut(&T) -> K + Send + 'static,
     {
         self.apply_operator("key_by", KeyByOperator::new(key_extractor))
+    }
+
+    /// Apply a process function for record-by-record processing with timers.
+    ///
+    /// The most expressive transformation: can emit zero, one, or many
+    /// outputs per input, and can register event-time timers.
+    pub fn process<Out, PF>(self, process_fn: PF) -> DataStream<'env, Out>
+    where
+        Out: Send + 'static,
+        PF: ProcessFunction<T, Out> + 'static,
+    {
+        self.apply_operator("process", ProcessOperator::new(process_fn))
+    }
+
+    /// Apply a keyed process function for per-key processing with timers.
+    ///
+    /// Must be called after `key_by()`. Receives the partition key alongside
+    /// each record for per-key stateful processing.
+    pub fn process_keyed<Out, PF>(self, process_fn: PF) -> DataStream<'env, Out>
+    where
+        Out: Send + 'static,
+        PF: KeyedProcessFunction<T, Out> + 'static,
+    {
+        self.apply_operator("keyed_process", KeyedProcessOperator::new(process_fn))
     }
 
     /// Assign records to windows. Must be called after `key_by`.
