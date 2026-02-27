@@ -15,7 +15,10 @@ mod window;
 
 pub use config::{ChannelKind, PipelineConfig};
 pub use error::{FlumeError, FlumeResult};
-pub use operator::{FilterOperator, FlatMapOperator, MapOperator, WindowOperator};
+pub use operator::{
+    FilterOperator, FlatMapOperator, KeyedProcessOperator, MapOperator, ProcessOperator,
+    WindowOperator,
+};
 pub use process::{
     KeyedProcessFunction, OnTimerContext, OutputTag, ProcessContext, ProcessFunction, TimerService,
 };
