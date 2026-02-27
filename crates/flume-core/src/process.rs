@@ -53,10 +53,7 @@ pub struct OnTimerContext<'a> {
 
 impl<'a> OnTimerContext<'a> {
     /// Create a new on-timer context.
-    pub fn new(
-        current_watermark: EventTimestamp,
-        timer_service: &'a mut dyn TimerService,
-    ) -> Self {
+    pub fn new(current_watermark: EventTimestamp, timer_service: &'a mut dyn TimerService) -> Self {
         Self {
             current_watermark,
             timer_service,
@@ -264,11 +261,7 @@ mod tests {
         let mut pf = DoublingProcess;
         let mut collector = VecCollector::new();
         let mut timer_service = MockTimerService::new(EventTimestamp::new(0));
-        let mut ctx = ProcessContext::new(
-            EventTimestamp::new(100),
-            None,
-            &mut timer_service,
-        );
+        let mut ctx = ProcessContext::new(EventTimestamp::new(100), None, &mut timer_service);
 
         pf.process_element(5, &mut ctx, &mut collector).unwrap();
 
@@ -283,11 +276,7 @@ mod tests {
         let mut collector = VecCollector::new();
         let mut timer_service = MockTimerService::new(EventTimestamp::new(0));
         let key = vec![1, 2, 3];
-        let mut ctx = ProcessContext::new(
-            EventTimestamp::new(200),
-            Some(&key),
-            &mut timer_service,
-        );
+        let mut ctx = ProcessContext::new(EventTimestamp::new(200), Some(&key), &mut timer_service);
 
         pf.process_element(&key, 10, &mut ctx, &mut collector)
             .unwrap();
@@ -300,15 +289,14 @@ mod tests {
     fn test_process_context_accessors() {
         let mut timer_service = MockTimerService::new(EventTimestamp::new(500));
         let key = vec![42];
-        let mut ctx = ProcessContext::new(
-            EventTimestamp::new(100),
-            Some(&key),
-            &mut timer_service,
-        );
+        let mut ctx = ProcessContext::new(EventTimestamp::new(100), Some(&key), &mut timer_service);
 
         assert_eq!(ctx.timestamp(), EventTimestamp::new(100));
         assert_eq!(ctx.current_key(), Some(&[42u8][..]));
-        assert_eq!(ctx.timer_service().current_watermark(), EventTimestamp::new(500));
+        assert_eq!(
+            ctx.timer_service().current_watermark(),
+            EventTimestamp::new(500)
+        );
     }
 
     #[test]
@@ -326,11 +314,7 @@ mod tests {
     #[test]
     fn test_timer_registration_via_context() {
         let mut timer_service = MockTimerService::new(EventTimestamp::new(0));
-        let mut ctx = ProcessContext::new(
-            EventTimestamp::new(100),
-            None,
-            &mut timer_service,
-        );
+        let mut ctx = ProcessContext::new(EventTimestamp::new(100), None, &mut timer_service);
 
         ctx.timer_service()
             .register_event_time_timer(EventTimestamp::new(500));

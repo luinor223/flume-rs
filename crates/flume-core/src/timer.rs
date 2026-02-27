@@ -138,8 +138,7 @@ impl TimerService for TimerServiceImpl {
     }
 
     fn delete_event_time_timer(&mut self, time: EventTimestamp) {
-        self.queue
-            .delete_event_time(time, self.current_key.clone());
+        self.queue.delete_event_time(time, self.current_key.clone());
     }
 
     fn register_processing_time_timer(&mut self, time: EventTimestamp) {
@@ -261,7 +260,9 @@ mod tests {
         service.set_watermark(EventTimestamp::new(150));
         assert_eq!(service.current_watermark(), EventTimestamp::new(150));
 
-        let fired = service.queue_mut().fire_event_time_up_to(EventTimestamp::new(150));
+        let fired = service
+            .queue_mut()
+            .fire_event_time_up_to(EventTimestamp::new(150));
         assert_eq!(fired.len(), 1);
         assert_eq!(fired[0], (EventTimestamp::new(100), vec![1]));
     }
@@ -273,7 +274,9 @@ mod tests {
         service.register_event_time_timer(EventTimestamp::new(100));
         service.delete_event_time_timer(EventTimestamp::new(100));
 
-        let fired = service.queue_mut().fire_event_time_up_to(EventTimestamp::new(200));
+        let fired = service
+            .queue_mut()
+            .fire_event_time_up_to(EventTimestamp::new(200));
         assert!(fired.is_empty());
     }
 
@@ -287,7 +290,9 @@ mod tests {
         service.set_current_key(vec![2]);
         service.register_event_time_timer(EventTimestamp::new(100));
 
-        let fired = service.queue_mut().fire_event_time_up_to(EventTimestamp::new(100));
+        let fired = service
+            .queue_mut()
+            .fire_event_time_up_to(EventTimestamp::new(100));
         assert_eq!(fired.len(), 2);
         assert_eq!(fired[0].1, vec![1]);
         assert_eq!(fired[1].1, vec![2]);

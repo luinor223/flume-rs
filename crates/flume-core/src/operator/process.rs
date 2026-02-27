@@ -1,11 +1,11 @@
 //! Operator adapters that wrap process functions into the `Operator` trait.
 
+use crate::process::KeyedProcessFunction;
 use crate::timer::TimerServiceImpl;
 use crate::{
     CheckpointBarrier, Collector, FlumeResult, OnTimerContext, Operator, ProcessContext,
     ProcessFunction, Record, Watermark,
 };
-use crate::process::KeyedProcessFunction;
 
 /// Wraps a [`ProcessFunction`] into an [`Operator`], providing timer support.
 pub struct ProcessOperator<PF> {
@@ -64,10 +64,8 @@ where
 
         for (timestamp, key) in fired {
             self.timer_service.set_current_key(key);
-            let mut ctx =
-                OnTimerContext::new(watermark.timestamp, &mut self.timer_service);
-            self.process_fn
-                .on_timer(timestamp, &mut ctx, collector)?;
+            let mut ctx = OnTimerContext::new(watermark.timestamp, &mut self.timer_service);
+            self.process_fn.on_timer(timestamp, &mut ctx, collector)?;
         }
 
         collector.collect_watermark(watermark)
@@ -112,11 +110,7 @@ where
         let key = record.key.clone().unwrap_or_default();
         self.timer_service.set_current_key(key.clone());
 
-        let mut ctx = ProcessContext::new(
-            record.timestamp,
-            Some(&key),
-            &mut self.timer_service,
-        );
+        let mut ctx = ProcessContext::new(record.timestamp, Some(&key), &mut self.timer_service);
 
         self.process_fn
             .process_element(&key, record.value, &mut ctx, collector)
@@ -136,8 +130,7 @@ where
 
         for (timestamp, key) in fired {
             self.timer_service.set_current_key(key.clone());
-            let mut ctx =
-                OnTimerContext::new(watermark.timestamp, &mut self.timer_service);
+            let mut ctx = OnTimerContext::new(watermark.timestamp, &mut self.timer_service);
             self.process_fn
                 .on_timer(timestamp, &key, &mut ctx, collector)?;
         }
@@ -224,8 +217,7 @@ mod tests {
         ) -> FlumeResult<()> {
             // Register a timer 100ms after the record timestamp.
             let timer_time = EventTimestamp::new(ctx.timestamp().as_millis() + 100);
-            ctx.timer_service()
-                .register_event_time_timer(timer_time);
+            ctx.timer_service().register_event_time_timer(timer_time);
             collector.collect(Record::new(value, ctx.timestamp()))
         }
 
@@ -252,8 +244,7 @@ mod tests {
             collector: &mut dyn Collector<i32>,
         ) -> FlumeResult<()> {
             collector.collect(
-                Record::new(value + key.len() as i32, ctx.timestamp())
-                    .with_key(key.to_vec()),
+                Record::new(value + key.len() as i32, ctx.timestamp()).with_key(key.to_vec()),
             )
         }
     }
@@ -270,8 +261,7 @@ mod tests {
             collector: &mut dyn Collector<i32>,
         ) -> FlumeResult<()> {
             let timer_time = EventTimestamp::new(ctx.timestamp().as_millis() + 100);
-            ctx.timer_service()
-                .register_event_time_timer(timer_time);
+            ctx.timer_service().register_event_time_timer(timer_time);
             collector.collect(Record::new(value, ctx.timestamp()))
         }
 
