@@ -11,6 +11,7 @@ pub mod physical;
 pub mod pinned;
 pub mod ring_buffer;
 pub mod scheduler;
+pub mod side_output;
 pub mod task;
 pub mod test_harness;
 pub mod watermark;

@@ -1,6 +1,6 @@
 //! Operator adapters that wrap process functions into the `Operator` trait.
 
-use crate::process::KeyedProcessFunction;
+use crate::process::{KeyedProcessFunction, SideOutputEmitter};
 use crate::timer::TimerServiceImpl;
 use crate::{
     CheckpointBarrier, Collector, FlumeResult, OnTimerContext, Operator, ProcessContext,
@@ -11,6 +11,7 @@ use crate::{
 pub struct ProcessOperator<PF> {
     process_fn: PF,
     timer_service: TimerServiceImpl,
+    side_outputs: Option<Box<dyn SideOutputEmitter>>,
 }
 
 impl<PF> ProcessOperator<PF> {
@@ -18,7 +19,14 @@ impl<PF> ProcessOperator<PF> {
         Self {
             process_fn,
             timer_service: TimerServiceImpl::new(),
+            side_outputs: None,
         }
+    }
+
+    /// Attach a side output emitter to this operator.
+    pub fn with_side_outputs(mut self, emitter: Box<dyn SideOutputEmitter>) -> Self {
+        self.side_outputs = Some(emitter);
+        self
     }
 }
 
@@ -36,15 +44,22 @@ where
         let key = record.key.clone().unwrap_or_default();
         self.timer_service.set_current_key(key.clone());
 
-        let mut ctx = ProcessContext::new(
-            record.timestamp,
-            if record.key.is_some() {
-                Some(&key)
-            } else {
-                None
-            },
-            &mut self.timer_service,
-        );
+        let key_ref = if record.key.is_some() {
+            Some(key.as_slice())
+        } else {
+            None
+        };
+
+        let mut ctx = if let Some(ref mut emitter) = self.side_outputs {
+            ProcessContext::with_side_outputs(
+                record.timestamp,
+                key_ref,
+                &mut self.timer_service,
+                emitter.as_mut(),
+            )
+        } else {
+            ProcessContext::new(record.timestamp, key_ref, &mut self.timer_service)
+        };
 
         self.process_fn
             .process_element(record.value, &mut ctx, collector)
@@ -85,6 +100,7 @@ where
 pub struct KeyedProcessOperator<PF> {
     process_fn: PF,
     timer_service: TimerServiceImpl,
+    side_outputs: Option<Box<dyn SideOutputEmitter>>,
 }
 
 impl<PF> KeyedProcessOperator<PF> {
@@ -92,7 +108,14 @@ impl<PF> KeyedProcessOperator<PF> {
         Self {
             process_fn,
             timer_service: TimerServiceImpl::new(),
+            side_outputs: None,
         }
+    }
+
+    /// Attach a side output emitter to this operator.
+    pub fn with_side_outputs(mut self, emitter: Box<dyn SideOutputEmitter>) -> Self {
+        self.side_outputs = Some(emitter);
+        self
     }
 }
 
@@ -110,7 +133,16 @@ where
         let key = record.key.clone().unwrap_or_default();
         self.timer_service.set_current_key(key.clone());
 
-        let mut ctx = ProcessContext::new(record.timestamp, Some(&key), &mut self.timer_service);
+        let mut ctx = if let Some(ref mut emitter) = self.side_outputs {
+            ProcessContext::with_side_outputs(
+                record.timestamp,
+                Some(&key),
+                &mut self.timer_service,
+                emitter.as_mut(),
+            )
+        } else {
+            ProcessContext::new(record.timestamp, Some(&key), &mut self.timer_service)
+        };
 
         self.process_fn
             .process_element(&key, record.value, &mut ctx, collector)
