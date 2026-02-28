@@ -4,6 +4,7 @@
 //! deduplication and efficient range queries for firing timers up to a watermark.
 
 use std::collections::BTreeSet;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{EventTimestamp, TimerService};
 
@@ -149,6 +150,14 @@ impl TimerService for TimerServiceImpl {
     fn delete_processing_time_timer(&mut self, time: EventTimestamp) {
         self.queue
             .delete_processing_time(time, self.current_key.clone());
+    }
+
+    fn current_processing_time(&self) -> EventTimestamp {
+        let millis = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        EventTimestamp::new(millis)
     }
 }
 

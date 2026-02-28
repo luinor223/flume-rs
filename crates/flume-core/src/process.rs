@@ -4,15 +4,33 @@
 //! access to per-record processing with event-time timers and the ability
 //! to emit zero, one, or many output records per input.
 
+use std::any::Any;
 use std::marker::PhantomData;
 
 use crate::{Collector, EventTimestamp, FlumeResult};
+
+/// Trait for emitting records to side output channels.
+///
+/// Implemented in `flume-runtime` with concrete channel senders.
+/// Defined here (in `flume-core`) so process functions can emit
+/// side outputs without depending on tokio.
+pub trait SideOutputEmitter: Send {
+    /// Emit a type-erased value to the side output identified by `tag_id`.
+    fn emit(
+        &mut self,
+        tag_id: &str,
+        value: Box<dyn Any + Send>,
+        timestamp: EventTimestamp,
+        key: Option<Vec<u8>>,
+    ) -> FlumeResult<()>;
+}
 
 /// Provides context about the current record being processed.
 pub struct ProcessContext<'a> {
     timestamp: EventTimestamp,
     current_key: Option<&'a [u8]>,
     timer_service: &'a mut dyn TimerService,
+    side_outputs: Option<&'a mut dyn SideOutputEmitter>,
 }
 
 impl<'a> ProcessContext<'a> {
@@ -26,6 +44,22 @@ impl<'a> ProcessContext<'a> {
             timestamp,
             current_key,
             timer_service,
+            side_outputs: None,
+        }
+    }
+
+    /// Create a new process context with side output support.
+    pub fn with_side_outputs(
+        timestamp: EventTimestamp,
+        current_key: Option<&'a [u8]>,
+        timer_service: &'a mut dyn TimerService,
+        side_outputs: &'a mut dyn SideOutputEmitter,
+    ) -> Self {
+        Self {
+            timestamp,
+            current_key,
+            timer_service,
+            side_outputs: Some(side_outputs),
         }
     }
 
@@ -42,6 +76,27 @@ impl<'a> ProcessContext<'a> {
     /// Access the timer service to register or delete timers.
     pub fn timer_service(&mut self) -> &mut dyn TimerService {
         self.timer_service
+    }
+
+    /// Emit a value to a side output channel identified by the given tag.
+    ///
+    /// Returns an error if no side output emitter is configured or if the
+    /// tag is not registered.
+    pub fn side_output<T: Send + 'static>(
+        &mut self,
+        tag: &OutputTag<T>,
+        value: T,
+    ) -> FlumeResult<()> {
+        let emitter = self
+            .side_outputs
+            .as_deref_mut()
+            .ok_or_else(|| crate::FlumeError::Operator("no side output emitter configured".into()))?;
+        emitter.emit(
+            tag.id(),
+            Box::new(value),
+            self.timestamp,
+            self.current_key.map(|k| k.to_vec()),
+        )
     }
 }
 
@@ -88,6 +143,9 @@ pub trait TimerService {
 
     /// Delete a previously registered processing-time timer.
     fn delete_processing_time_timer(&mut self, time: EventTimestamp);
+
+    /// Returns the current processing time (wall-clock).
+    fn current_processing_time(&self) -> EventTimestamp;
 }
 
 /// A process function that processes records one at a time with access to
@@ -141,8 +199,40 @@ pub trait KeyedProcessFunction<In: Send, Out: Send>: Send {
     }
 }
 
-/// A named tag for a side output stream. Type definition only — side output
-/// emission is deferred to a follow-up phase that adds tagged channels.
+/// A two-input process function for connected streams.
+///
+/// Receives elements from two input streams (dispatched via `Either<In1, In2>`)
+/// and can emit outputs, register timers, and emit side outputs.
+pub trait CoProcessFunction<In1: Send, In2: Send, Out: Send>: Send {
+    /// Process an element from the first input stream.
+    fn process_element1(
+        &mut self,
+        value: In1,
+        ctx: &mut ProcessContext<'_>,
+        collector: &mut dyn Collector<Out>,
+    ) -> FlumeResult<()>;
+
+    /// Process an element from the second input stream.
+    fn process_element2(
+        &mut self,
+        value: In2,
+        ctx: &mut ProcessContext<'_>,
+        collector: &mut dyn Collector<Out>,
+    ) -> FlumeResult<()>;
+
+    /// Called when a previously registered timer fires.
+    /// Default implementation does nothing.
+    fn on_timer(
+        &mut self,
+        _timestamp: EventTimestamp,
+        _ctx: &mut OnTimerContext<'_>,
+        _collector: &mut dyn Collector<Out>,
+    ) -> FlumeResult<()> {
+        Ok(())
+    }
+}
+
+/// A named tag for a side output stream.
 pub struct OutputTag<T> {
     id: String,
     _marker: PhantomData<T>,
@@ -199,6 +289,10 @@ mod tests {
         fn register_processing_time_timer(&mut self, _time: EventTimestamp) {}
 
         fn delete_processing_time_timer(&mut self, _time: EventTimestamp) {}
+
+        fn current_processing_time(&self) -> EventTimestamp {
+            EventTimestamp::new(0)
+        }
     }
 
     struct VecCollector<T> {
@@ -342,5 +436,135 @@ mod tests {
             .unwrap();
 
         assert!(collector.records.is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // CoProcessFunction tests
+    // -----------------------------------------------------------------------
+
+    /// A CoProcessFunction that tags outputs with which input they came from.
+    struct TaggingCoProcess;
+
+    impl CoProcessFunction<i32, String, String> for TaggingCoProcess {
+        fn process_element1(
+            &mut self,
+            value: i32,
+            ctx: &mut ProcessContext<'_>,
+            collector: &mut dyn Collector<String>,
+        ) -> FlumeResult<()> {
+            collector.collect(Record::new(format!("left:{value}"), ctx.timestamp()))
+        }
+
+        fn process_element2(
+            &mut self,
+            value: String,
+            ctx: &mut ProcessContext<'_>,
+            collector: &mut dyn Collector<String>,
+        ) -> FlumeResult<()> {
+            collector.collect(Record::new(format!("right:{value}"), ctx.timestamp()))
+        }
+    }
+
+    #[test]
+    fn test_co_process_function_element1() {
+        let mut cpf = TaggingCoProcess;
+        let mut collector = VecCollector::new();
+        let mut timer_service = MockTimerService::new(EventTimestamp::new(0));
+        let mut ctx = ProcessContext::new(EventTimestamp::new(100), None, &mut timer_service);
+
+        cpf.process_element1(42, &mut ctx, &mut collector).unwrap();
+
+        assert_eq!(collector.records.len(), 1);
+        assert_eq!(collector.records[0].value, "left:42");
+    }
+
+    #[test]
+    fn test_co_process_function_element2() {
+        let mut cpf = TaggingCoProcess;
+        let mut collector = VecCollector::new();
+        let mut timer_service = MockTimerService::new(EventTimestamp::new(0));
+        let mut ctx = ProcessContext::new(EventTimestamp::new(200), None, &mut timer_service);
+
+        cpf.process_element2("hello".to_string(), &mut ctx, &mut collector)
+            .unwrap();
+
+        assert_eq!(collector.records.len(), 1);
+        assert_eq!(collector.records[0].value, "right:hello");
+    }
+
+    #[test]
+    fn test_co_process_function_default_on_timer() {
+        let mut cpf = TaggingCoProcess;
+        let mut collector = VecCollector::<String>::new();
+        let mut timer_service = MockTimerService::new(EventTimestamp::new(500));
+        let mut ctx = OnTimerContext::new(EventTimestamp::new(500), &mut timer_service);
+
+        cpf.on_timer(EventTimestamp::new(500), &mut ctx, &mut collector)
+            .unwrap();
+
+        assert!(collector.records.is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // SideOutputEmitter tests
+    // -----------------------------------------------------------------------
+
+    /// Mock side output emitter that records emissions.
+    struct MockSideOutputEmitter {
+        emissions: Vec<(String, EventTimestamp)>,
+    }
+
+    impl MockSideOutputEmitter {
+        fn new() -> Self {
+            Self {
+                emissions: Vec::new(),
+            }
+        }
+    }
+
+    impl SideOutputEmitter for MockSideOutputEmitter {
+        fn emit(
+            &mut self,
+            tag_id: &str,
+            _value: Box<dyn Any + Send>,
+            timestamp: EventTimestamp,
+            _key: Option<Vec<u8>>,
+        ) -> FlumeResult<()> {
+            self.emissions.push((tag_id.to_string(), timestamp));
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_side_output_via_context() {
+        let mut timer_service = MockTimerService::new(EventTimestamp::new(0));
+        let mut emitter = MockSideOutputEmitter::new();
+
+        {
+            let mut ctx = ProcessContext::with_side_outputs(
+                EventTimestamp::new(100),
+                None,
+                &mut timer_service,
+                &mut emitter,
+            );
+
+            let tag = OutputTag::<String>::new("rejected");
+            ctx.side_output(&tag, "bad-record".to_string()).unwrap();
+        }
+
+        assert_eq!(emitter.emissions.len(), 1);
+        assert_eq!(emitter.emissions[0].0, "rejected");
+        assert_eq!(emitter.emissions[0].1, EventTimestamp::new(100));
+    }
+
+    #[test]
+    fn test_side_output_without_emitter_returns_error() {
+        let mut timer_service = MockTimerService::new(EventTimestamp::new(0));
+        let mut ctx = ProcessContext::new(EventTimestamp::new(100), None, &mut timer_service);
+
+        let tag = OutputTag::<String>::new("rejected");
+        let result = ctx.side_output(&tag, "bad-record".to_string());
+
+        assert!(result.is_err());
     }
 }

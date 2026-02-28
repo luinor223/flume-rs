@@ -4,6 +4,7 @@
 //! shared by every other crate in the workspace.
 
 mod config;
+mod either;
 mod error;
 mod operator;
 mod process;
@@ -14,13 +15,15 @@ mod traits;
 mod window;
 
 pub use config::{ChannelKind, PipelineConfig};
+pub use either::Either;
 pub use error::{FlumeError, FlumeResult};
 pub use operator::{
     FilterOperator, FlatMapOperator, KeyedProcessOperator, MapOperator, ProcessOperator,
     WindowOperator,
 };
 pub use process::{
-    KeyedProcessFunction, OnTimerContext, OutputTag, ProcessContext, ProcessFunction, TimerService,
+    CoProcessFunction, KeyedProcessFunction, OnTimerContext, OutputTag, ProcessContext,
+    ProcessFunction, SideOutputEmitter, TimerService,
 };
 pub use record::{CheckpointAck, CheckpointBarrier, Record, StreamElement, Watermark};
 pub use time::EventTimestamp;
