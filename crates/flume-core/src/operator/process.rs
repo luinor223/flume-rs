@@ -569,10 +569,7 @@ mod tests {
         let mut op = CoProcessOperator::new(TaggingCPF);
         let mut collector = TestCollector::new();
 
-        let record = Record::new(
-            Either::Right("hello".to_string()),
-            EventTimestamp::new(200),
-        );
+        let record = Record::new(Either::Right("hello".to_string()), EventTimestamp::new(200));
         op.process_record(record, &mut collector).unwrap();
 
         let records = collector.records();

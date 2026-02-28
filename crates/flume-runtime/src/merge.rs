@@ -319,18 +319,24 @@ mod tests {
         let (out_tx, mut out_rx) = mpsc::channel(16);
 
         // Send records from both inputs, then close.
-        tx1.send(StreamElement::Record(Record::new(1, EventTimestamp::new(100))))
-            .await
-            .unwrap();
+        tx1.send(StreamElement::Record(Record::new(
+            1,
+            EventTimestamp::new(100),
+        )))
+        .await
+        .unwrap();
         tx2.send(StreamElement::Record(Record::new(
             "a".to_string(),
             EventTimestamp::new(200),
         )))
         .await
         .unwrap();
-        tx1.send(StreamElement::Record(Record::new(2, EventTimestamp::new(300))))
-            .await
-            .unwrap();
+        tx1.send(StreamElement::Record(Record::new(
+            2,
+            EventTimestamp::new(300),
+        )))
+        .await
+        .unwrap();
         drop(tx1);
         drop(tx2);
 
@@ -374,14 +380,18 @@ mod tests {
         let (out_tx, mut out_rx) = mpsc::channel(16);
 
         // Input1 watermark at 100 — output should NOT forward yet (input2 is still at MIN).
-        tx1.send(StreamElement::Watermark(Watermark::new(EventTimestamp::new(100))))
-            .await
-            .unwrap();
+        tx1.send(StreamElement::Watermark(Watermark::new(
+            EventTimestamp::new(100),
+        )))
+        .await
+        .unwrap();
 
         // Input2 watermark at 50 — output should forward min(100, 50) = 50.
-        tx2.send(StreamElement::Watermark(Watermark::new(EventTimestamp::new(50))))
-            .await
-            .unwrap();
+        tx2.send(StreamElement::Watermark(Watermark::new(
+            EventTimestamp::new(50),
+        )))
+        .await
+        .unwrap();
 
         // Input2 watermark at 200 — output should forward min(100, 200) = 100.
         tx2.send(StreamElement::Watermark(Watermark::new(

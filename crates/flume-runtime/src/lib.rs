@@ -5,8 +5,8 @@
 
 pub mod channel;
 pub mod checkpoint;
-pub mod merge;
 pub mod dag;
+pub mod merge;
 pub mod partition;
 pub mod physical;
 pub mod pinned;

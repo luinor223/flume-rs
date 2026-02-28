@@ -70,9 +70,10 @@ impl SideOutputEmitter for SideOutputCollectors {
         timestamp: EventTimestamp,
         key: Option<Vec<u8>>,
     ) -> FlumeResult<()> {
-        let sender = self.senders.get_mut(tag_id).ok_or_else(|| {
-            FlumeError::Operator(format!("unknown side output tag: {tag_id}"))
-        })?;
+        let sender = self
+            .senders
+            .get_mut(tag_id)
+            .ok_or_else(|| FlumeError::Operator(format!("unknown side output tag: {tag_id}")))?;
         sender(value, timestamp, key)
     }
 }

@@ -6,9 +6,7 @@
 
 use std::hash::Hash;
 
-use flume_core::{
-    CoProcessFunction, CoProcessOperator, Either, FlumeError, Source, StreamElement,
-};
+use flume_core::{CoProcessFunction, CoProcessOperator, Either, FlumeError, Source, StreamElement};
 use flume_runtime::channel::{OperatorInput, operator_channel_with_kind};
 use flume_runtime::dag::{NodeKind, PartitionStrategy};
 use flume_runtime::merge::two_input_merge;
@@ -49,12 +47,8 @@ impl<'env, In1: Send + 'static, In2: Send + 'static> ConnectedStream<'env, In1, 
         F1: FnMut(&In1) -> K1 + Send + 'static,
         F2: FnMut(&In2) -> K2 + Send + 'static,
     {
-        self.key_extractor_1 = Some(Box::new(move |value: &In1| {
-            hash_key(&f1(value))
-        }));
-        self.key_extractor_2 = Some(Box::new(move |value: &In2| {
-            hash_key(&f2(value))
-        }));
+        self.key_extractor_1 = Some(Box::new(move |value: &In1| hash_key(&f1(value))));
+        self.key_extractor_2 = Some(Box::new(move |value: &In2| hash_key(&f2(value))));
         self
     }
 
@@ -80,46 +74,55 @@ impl<'env, In1: Send + 'static, In2: Send + 'static> ConnectedStream<'env, In1, 
 
         // Spawn task to drain input1 (applying key extractor if set).
         let mut key_fn_1 = self.key_extractor_1.take();
-        self.stream.env.scheduler.spawn("connected-input1", async move {
-            let mut input = input1;
-            while let Some(mut element) = input.recv().await {
-                if let Some(ref mut key_fn) = key_fn_1
-                    && let StreamElement::Record(ref mut record) = element
-                {
-                    record.key = Some(key_fn(&record.value));
+        self.stream
+            .env
+            .scheduler
+            .spawn("connected-input1", async move {
+                let mut input = input1;
+                while let Some(mut element) = input.recv().await {
+                    if let Some(ref mut key_fn) = key_fn_1
+                        && let StreamElement::Record(ref mut record) = element
+                    {
+                        record.key = Some(key_fn(&record.value));
+                    }
+                    tx1.send(element)
+                        .await
+                        .map_err(|_| FlumeError::ChannelClosed)?;
                 }
-                tx1.send(element)
-                    .await
-                    .map_err(|_| FlumeError::ChannelClosed)?;
-            }
-            Ok(())
-        });
+                Ok(())
+            });
 
         // Wire source2 → mpsc channel for In2.
         let (tx2, rx2) = mpsc::channel::<StreamElement<In2>>(buffer_size);
         let mut source2 = self.source;
         let mut key_fn_2 = self.key_extractor_2.take();
-        self.stream.env.scheduler.spawn("connected-input2", async move {
-            while let Some(mut element) = source2.next().await? {
-                if let Some(ref mut key_fn) = key_fn_2
-                    && let StreamElement::Record(ref mut record) = element
-                {
-                    record.key = Some(key_fn(&record.value));
+        self.stream
+            .env
+            .scheduler
+            .spawn("connected-input2", async move {
+                while let Some(mut element) = source2.next().await? {
+                    if let Some(ref mut key_fn) = key_fn_2
+                        && let StreamElement::Record(ref mut record) = element
+                    {
+                        record.key = Some(key_fn(&record.value));
+                    }
+                    tx2.send(element)
+                        .await
+                        .map_err(|_| FlumeError::ChannelClosed)?;
                 }
-                tx2.send(element)
-                    .await
-                    .map_err(|_| FlumeError::ChannelClosed)?;
-            }
-            Ok(())
-        });
+                Ok(())
+            });
 
         // Merged channel: Either<In1, In2>.
         let (merged_tx, merged_rx) = mpsc::channel::<StreamElement<Either<In1, In2>>>(buffer_size);
 
         // Spawn the two-input merge task.
-        self.stream.env.scheduler.spawn("two-input-merge", async move {
-            two_input_merge(rx1, rx2, merged_tx).await
-        });
+        self.stream
+            .env
+            .scheduler
+            .spawn("two-input-merge", async move {
+                two_input_merge(rx1, rx2, merged_tx).await
+            });
 
         // Create the CoProcessOperator and wire it via TaskExecutor.
         let operator = CoProcessOperator::new(co_process_fn);
@@ -129,15 +132,20 @@ impl<'env, In1: Send + 'static, In2: Send + 'static> ConnectedStream<'env, In1, 
         let (output_collector, output_input) =
             operator_channel_with_kind::<Out>(buffer_size, channel_kind);
 
-        let new_node_id = self.stream.env.add_node("co_process", NodeKind::Operator, 1);
-        self.stream.env.add_edge(
-            self.stream.node_id,
-            new_node_id,
-            PartitionStrategy::Forward,
-        );
+        let new_node_id = self
+            .stream
+            .env
+            .add_node("co_process", NodeKind::Operator, 1);
+        self.stream
+            .env
+            .add_edge(self.stream.node_id, new_node_id, PartitionStrategy::Forward);
 
         let task_name = format!("co_process-{new_node_id}");
-        debug!(operator = "co_process", node_id = new_node_id, "wiring co-process operator");
+        debug!(
+            operator = "co_process",
+            node_id = new_node_id,
+            "wiring co-process operator"
+        );
         let cancel = self.stream.env.scheduler.cancel_token();
         let executor =
             TaskExecutor::new(task_name.clone(), operator, merged_input, output_collector)
@@ -159,4 +167,3 @@ fn hash_key(key: &impl Hash) -> Vec<u8> {
     key.hash(&mut hasher);
     hasher.finish().to_le_bytes().to_vec()
 }
-

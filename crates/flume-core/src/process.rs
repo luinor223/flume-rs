@@ -87,10 +87,9 @@ impl<'a> ProcessContext<'a> {
         tag: &OutputTag<T>,
         value: T,
     ) -> FlumeResult<()> {
-        let emitter = self
-            .side_outputs
-            .as_deref_mut()
-            .ok_or_else(|| crate::FlumeError::Operator("no side output emitter configured".into()))?;
+        let emitter = self.side_outputs.as_deref_mut().ok_or_else(|| {
+            crate::FlumeError::Operator("no side output emitter configured".into())
+        })?;
         emitter.emit(
             tag.id(),
             Box::new(value),
