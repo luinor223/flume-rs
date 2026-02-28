@@ -1,6 +1,7 @@
 //! Operator adapters that wrap process functions into the `Operator` trait.
 
-use crate::process::{KeyedProcessFunction, SideOutputEmitter};
+use crate::either::Either;
+use crate::process::{CoProcessFunction, KeyedProcessFunction, SideOutputEmitter};
 use crate::timer::TimerServiceImpl;
 use crate::{
     CheckpointBarrier, Collector, FlumeResult, OnTimerContext, Operator, ProcessContext,
@@ -179,10 +180,110 @@ where
     }
 }
 
+/// Wraps a [`CoProcessFunction`] into an [`Operator`] over `Either<In1, In2>`.
+///
+/// Dispatches `Either::Left` elements to `process_element1` and
+/// `Either::Right` elements to `process_element2`. Fires event-time
+/// timers on watermark advancement.
+pub struct CoProcessOperator<CPF> {
+    co_process_fn: CPF,
+    timer_service: TimerServiceImpl,
+    side_outputs: Option<Box<dyn SideOutputEmitter>>,
+}
+
+impl<CPF> CoProcessOperator<CPF> {
+    pub fn new(co_process_fn: CPF) -> Self {
+        Self {
+            co_process_fn,
+            timer_service: TimerServiceImpl::new(),
+            side_outputs: None,
+        }
+    }
+
+    /// Attach a side output emitter to this operator.
+    pub fn with_side_outputs(mut self, emitter: Box<dyn SideOutputEmitter>) -> Self {
+        self.side_outputs = Some(emitter);
+        self
+    }
+}
+
+impl<In1, In2, Out, CPF> Operator<Either<In1, In2>, Out> for CoProcessOperator<CPF>
+where
+    In1: Send,
+    In2: Send,
+    Out: Send,
+    CPF: CoProcessFunction<In1, In2, Out>,
+{
+    fn process_record(
+        &mut self,
+        record: Record<Either<In1, In2>>,
+        collector: &mut dyn Collector<Out>,
+    ) -> FlumeResult<()> {
+        let key = record.key.clone().unwrap_or_default();
+        self.timer_service.set_current_key(key.clone());
+
+        let key_ref = if record.key.is_some() {
+            Some(key.as_slice())
+        } else {
+            None
+        };
+
+        let mut ctx = if let Some(ref mut emitter) = self.side_outputs {
+            ProcessContext::with_side_outputs(
+                record.timestamp,
+                key_ref,
+                &mut self.timer_service,
+                emitter.as_mut(),
+            )
+        } else {
+            ProcessContext::new(record.timestamp, key_ref, &mut self.timer_service)
+        };
+
+        match record.value {
+            Either::Left(value) => self
+                .co_process_fn
+                .process_element1(value, &mut ctx, collector),
+            Either::Right(value) => self
+                .co_process_fn
+                .process_element2(value, &mut ctx, collector),
+        }
+    }
+
+    fn process_watermark(
+        &mut self,
+        watermark: Watermark,
+        collector: &mut dyn Collector<Out>,
+    ) -> FlumeResult<()> {
+        self.timer_service.set_watermark(watermark.timestamp);
+
+        let fired = self
+            .timer_service
+            .queue_mut()
+            .fire_event_time_up_to(watermark.timestamp);
+
+        for (timestamp, key) in fired {
+            self.timer_service.set_current_key(key);
+            let mut ctx = OnTimerContext::new(watermark.timestamp, &mut self.timer_service);
+            self.co_process_fn
+                .on_timer(timestamp, &mut ctx, collector)?;
+        }
+
+        collector.collect_watermark(watermark)
+    }
+
+    fn process_barrier(
+        &mut self,
+        barrier: CheckpointBarrier,
+        collector: &mut dyn Collector<Out>,
+    ) -> FlumeResult<()> {
+        collector.collect_barrier(barrier)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{EventTimestamp, StreamElement};
+    use crate::{CoProcessFunction, Either, EventTimestamp, StreamElement};
 
     /// Test collector that records everything emitted.
     struct TestCollector<T> {
@@ -420,6 +521,129 @@ mod tests {
         assert!(matches!(
             collector.elements.last(),
             Some(StreamElement::CheckpointBarrier(b)) if b.checkpoint_id == 1
+        ));
+    }
+
+    // -----------------------------------------------------------------------
+    // CoProcessOperator tests
+    // -----------------------------------------------------------------------
+
+    /// CoProcessFunction that tags outputs with which input they came from.
+    struct TaggingCPF;
+
+    impl CoProcessFunction<i32, String, String> for TaggingCPF {
+        fn process_element1(
+            &mut self,
+            value: i32,
+            ctx: &mut ProcessContext<'_>,
+            collector: &mut dyn Collector<String>,
+        ) -> FlumeResult<()> {
+            collector.collect(Record::new(format!("left:{value}"), ctx.timestamp()))
+        }
+
+        fn process_element2(
+            &mut self,
+            value: String,
+            ctx: &mut ProcessContext<'_>,
+            collector: &mut dyn Collector<String>,
+        ) -> FlumeResult<()> {
+            collector.collect(Record::new(format!("right:{value}"), ctx.timestamp()))
+        }
+    }
+
+    #[test]
+    fn test_co_process_operator_dispatches_left() {
+        let mut op = CoProcessOperator::new(TaggingCPF);
+        let mut collector = TestCollector::new();
+
+        let record = Record::new(Either::Left(42), EventTimestamp::new(100));
+        op.process_record(record, &mut collector).unwrap();
+
+        let records = collector.records();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].value, "left:42");
+    }
+
+    #[test]
+    fn test_co_process_operator_dispatches_right() {
+        let mut op = CoProcessOperator::new(TaggingCPF);
+        let mut collector = TestCollector::new();
+
+        let record = Record::new(
+            Either::Right("hello".to_string()),
+            EventTimestamp::new(200),
+        );
+        op.process_record(record, &mut collector).unwrap();
+
+        let records = collector.records();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].value, "right:hello");
+    }
+
+    /// CoProcessFunction that registers a timer in process_element1.
+    struct TimerCPF;
+
+    impl CoProcessFunction<i32, i32, i32> for TimerCPF {
+        fn process_element1(
+            &mut self,
+            value: i32,
+            ctx: &mut ProcessContext<'_>,
+            collector: &mut dyn Collector<i32>,
+        ) -> FlumeResult<()> {
+            let timer_time = EventTimestamp::new(ctx.timestamp().as_millis() + 100);
+            ctx.timer_service().register_event_time_timer(timer_time);
+            collector.collect(Record::new(value, ctx.timestamp()))
+        }
+
+        fn process_element2(
+            &mut self,
+            value: i32,
+            ctx: &mut ProcessContext<'_>,
+            collector: &mut dyn Collector<i32>,
+        ) -> FlumeResult<()> {
+            collector.collect(Record::new(value * 10, ctx.timestamp()))
+        }
+
+        fn on_timer(
+            &mut self,
+            timestamp: EventTimestamp,
+            _ctx: &mut OnTimerContext<'_>,
+            collector: &mut dyn Collector<i32>,
+        ) -> FlumeResult<()> {
+            collector.collect(Record::new(-1, timestamp))
+        }
+    }
+
+    #[test]
+    fn test_co_process_operator_fires_timers() {
+        let mut op = CoProcessOperator::new(TimerCPF);
+        let mut collector = TestCollector::new();
+
+        // Left input at ts=1000 registers timer at 1100.
+        let record = Record::new(Either::Left(5), EventTimestamp::new(1000));
+        op.process_record(record, &mut collector).unwrap();
+
+        // Watermark at 1100 fires the timer.
+        let wm = Watermark::new(EventTimestamp::new(1100));
+        op.process_watermark(wm, &mut collector).unwrap();
+
+        let records = collector.records();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].value, 5);
+        assert_eq!(records[1].value, -1);
+    }
+
+    #[test]
+    fn test_co_process_operator_forwards_barrier() {
+        let mut op = CoProcessOperator::new(TaggingCPF);
+        let mut collector = TestCollector::new();
+
+        let barrier = CheckpointBarrier::new(7, EventTimestamp::new(300));
+        op.process_barrier(barrier, &mut collector).unwrap();
+
+        assert!(matches!(
+            collector.elements.last(),
+            Some(StreamElement::CheckpointBarrier(b)) if b.checkpoint_id == 7
         ));
     }
 }

@@ -18,8 +18,8 @@ pub use config::{ChannelKind, PipelineConfig};
 pub use either::Either;
 pub use error::{FlumeError, FlumeResult};
 pub use operator::{
-    FilterOperator, FlatMapOperator, KeyedProcessOperator, MapOperator, ProcessOperator,
-    WindowOperator,
+    CoProcessOperator, FilterOperator, FlatMapOperator, KeyedProcessOperator, MapOperator,
+    ProcessOperator, WindowOperator,
 };
 pub use process::{
     CoProcessFunction, KeyedProcessFunction, OnTimerContext, OutputTag, ProcessContext,
