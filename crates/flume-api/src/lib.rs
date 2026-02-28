@@ -3,6 +3,7 @@
 //! Mirrors Flink's DataStream API: a fluent builder pattern where each
 //! transformation returns a new stream that can be further transformed.
 
+mod connected;
 pub mod config;
 mod datastream;
 mod environment;
@@ -11,6 +12,7 @@ pub mod sink;
 pub mod source;
 mod windowed;
 
+pub use connected::ConnectedStream;
 pub use datastream::DataStream;
 #[cfg(feature = "prometheus")]
 pub use environment::init_metrics;

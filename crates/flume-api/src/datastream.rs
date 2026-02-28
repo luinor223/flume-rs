@@ -10,6 +10,7 @@ use flume_runtime::dag::{NodeKind, PartitionStrategy};
 use flume_runtime::task::TaskExecutor;
 use tracing::{debug, info};
 
+use crate::connected::ConnectedStream;
 use crate::environment::StreamExecutionEnvironment;
 use crate::windowed::WindowedStream;
 
@@ -23,8 +24,8 @@ pub(crate) enum SourceOrChannel<T: Send + 'static> {
 /// but don't process data until a terminal operation ([`add_sink`](DataStream::add_sink))
 /// is called.
 pub struct DataStream<'env, T: Send + 'static> {
-    env: &'env mut StreamExecutionEnvironment,
-    node_id: usize,
+    pub(crate) env: &'env mut StreamExecutionEnvironment,
+    pub(crate) node_id: usize,
     upstream: Option<SourceOrChannel<T>>,
 }
 
@@ -44,7 +45,7 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
     /// Wire the upstream source or channel into an `OperatorInput`.
     /// If upstream is a Source, spawns a drainer task that reads from the
     /// source and sends elements into an mpsc channel.
-    fn wire_upstream(&mut self) -> OperatorInput<T> {
+    pub(crate) fn wire_upstream(&mut self) -> OperatorInput<T> {
         let upstream = self.upstream.take().expect("upstream already consumed");
         match upstream {
             SourceOrChannel::Input(input) => input,
@@ -158,6 +159,20 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         PF: KeyedProcessFunction<T, Out> + 'static,
     {
         self.apply_operator("keyed_process", KeyedProcessOperator::new(process_fn))
+    }
+
+    /// Connect this stream with a second input source for two-input
+    /// co-processing. Returns a [`ConnectedStream`] on which you call
+    /// `.process()` with a [`CoProcessFunction`](flume_core::CoProcessFunction).
+    ///
+    /// The second input is provided as a [`Source`] rather than a
+    /// `DataStream` to avoid borrow-checker issues (both streams would
+    /// need `&mut env`).
+    pub fn connect<U: Send + 'static>(
+        self,
+        source: impl Source<U> + 'static,
+    ) -> ConnectedStream<'env, T, U> {
+        ConnectedStream::new(self, Box::new(source))
     }
 
     /// Assign records to windows. Must be called after `key_by`.
