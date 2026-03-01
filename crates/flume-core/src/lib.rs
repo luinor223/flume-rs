@@ -20,9 +20,8 @@ pub use either::Either;
 pub use error::{FlumeError, FlumeResult};
 pub use join::{CogroupFunction, JoinFunction};
 pub use operator::{
-    CoProcessOperator, FilterOperator, FlatMapOperator, IntervalJoinOperator,
-    KeyedProcessOperator, MapOperator, ProcessOperator, WindowCogroupOperator,
-    WindowJoinOperator, WindowOperator,
+    CoProcessOperator, FilterOperator, FlatMapOperator, IntervalJoinOperator, KeyedProcessOperator,
+    MapOperator, ProcessOperator, WindowCogroupOperator, WindowJoinOperator, WindowOperator,
 };
 pub use process::{
     CoProcessFunction, KeyedProcessFunction, OnTimerContext, OutputTag, ProcessContext,

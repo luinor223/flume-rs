@@ -111,54 +111,45 @@ where
 
     // Spawn task to drain input1 (applying key extractor if set).
     let mut key_fn_1 = key_fn_1.take();
-    stream
-        .env
-        .scheduler
-        .spawn("connected-input1", async move {
-            let mut input = input1;
-            while let Some(mut element) = input.recv().await {
-                if let Some(ref mut key_fn) = key_fn_1
-                    && let StreamElement::Record(ref mut record) = element
-                {
-                    record.key = Some(key_fn(&record.value));
-                }
-                tx1.send(element)
-                    .await
-                    .map_err(|_| FlumeError::ChannelClosed)?;
+    stream.env.scheduler.spawn("connected-input1", async move {
+        let mut input = input1;
+        while let Some(mut element) = input.recv().await {
+            if let Some(ref mut key_fn) = key_fn_1
+                && let StreamElement::Record(ref mut record) = element
+            {
+                record.key = Some(key_fn(&record.value));
             }
-            Ok(())
-        });
+            tx1.send(element)
+                .await
+                .map_err(|_| FlumeError::ChannelClosed)?;
+        }
+        Ok(())
+    });
 
     // Wire source2 → mpsc channel for In2.
     let (tx2, rx2) = mpsc::channel::<StreamElement<In2>>(buffer_size);
     let mut key_fn_2 = key_fn_2.take();
-    stream
-        .env
-        .scheduler
-        .spawn("connected-input2", async move {
-            while let Some(mut element) = source.next().await? {
-                if let Some(ref mut key_fn) = key_fn_2
-                    && let StreamElement::Record(ref mut record) = element
-                {
-                    record.key = Some(key_fn(&record.value));
-                }
-                tx2.send(element)
-                    .await
-                    .map_err(|_| FlumeError::ChannelClosed)?;
+    stream.env.scheduler.spawn("connected-input2", async move {
+        while let Some(mut element) = source.next().await? {
+            if let Some(ref mut key_fn) = key_fn_2
+                && let StreamElement::Record(ref mut record) = element
+            {
+                record.key = Some(key_fn(&record.value));
             }
-            Ok(())
-        });
+            tx2.send(element)
+                .await
+                .map_err(|_| FlumeError::ChannelClosed)?;
+        }
+        Ok(())
+    });
 
     // Merged channel: Either<In1, In2>.
     let (merged_tx, merged_rx) = mpsc::channel::<StreamElement<Either<In1, In2>>>(buffer_size);
 
     // Spawn the two-input merge task.
-    stream
-        .env
-        .scheduler
-        .spawn("two-input-merge", async move {
-            two_input_merge(rx1, rx2, merged_tx).await
-        });
+    stream.env.scheduler.spawn("two-input-merge", async move {
+        two_input_merge(rx1, rx2, merged_tx).await
+    });
 
     let merged_input = OperatorInput::Mpsc(merged_rx);
 

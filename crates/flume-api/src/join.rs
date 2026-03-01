@@ -10,7 +10,7 @@ use flume_core::{
     WindowJoinOperator,
 };
 
-use crate::connected::{hash_key, wire_two_input_operator, KeyExtractor};
+use crate::connected::{KeyExtractor, hash_key, wire_two_input_operator};
 use crate::datastream::DataStream;
 
 /// A two-input stream ready for window-based joining.

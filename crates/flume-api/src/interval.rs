@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use flume_core::{IntervalJoinOperator, JoinFunction, Source};
 
-use crate::connected::{hash_key, wire_two_input_operator, KeyExtractor};
+use crate::connected::{KeyExtractor, hash_key, wire_two_input_operator};
 use crate::datastream::DataStream;
 
 /// A two-input stream ready for interval-based joining.

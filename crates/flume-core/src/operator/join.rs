@@ -327,8 +327,8 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
-    use crate::window::TumblingWindow;
     use crate::StreamElement;
+    use crate::window::TumblingWindow;
 
     /// Test collector that records everything emitted.
     struct TestCollector<T> {
@@ -462,10 +462,8 @@ mod tests {
         let mut op = WindowJoinOperator::new(Box::new(assigner), |l: &i32, r: &i32| l + r);
         let mut collector = TestCollector::new();
 
-        let l1 =
-            Record::new(Either::Left(1i32), EventTimestamp::new(2_000)).with_key(vec![1]);
-        let r1 =
-            Record::new(Either::Right(10i32), EventTimestamp::new(7_000)).with_key(vec![1]);
+        let l1 = Record::new(Either::Left(1i32), EventTimestamp::new(2_000)).with_key(vec![1]);
+        let r1 = Record::new(Either::Right(10i32), EventTimestamp::new(7_000)).with_key(vec![1]);
 
         op.process_record(l1, &mut collector).unwrap();
         op.process_record(r1, &mut collector).unwrap();
