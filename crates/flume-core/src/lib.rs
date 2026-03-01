@@ -6,6 +6,7 @@
 mod config;
 mod either;
 mod error;
+pub mod join;
 mod operator;
 mod process;
 mod record;
@@ -17,9 +18,10 @@ mod window;
 pub use config::{ChannelKind, PipelineConfig};
 pub use either::Either;
 pub use error::{FlumeError, FlumeResult};
+pub use join::{CogroupFunction, JoinFunction};
 pub use operator::{
     CoProcessOperator, FilterOperator, FlatMapOperator, KeyedProcessOperator, MapOperator,
-    ProcessOperator, WindowOperator,
+    ProcessOperator, WindowCogroupOperator, WindowJoinOperator, WindowOperator,
 };
 pub use process::{
     CoProcessFunction, KeyedProcessFunction, OnTimerContext, OutputTag, ProcessContext,

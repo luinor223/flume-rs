@@ -2,10 +2,12 @@
 
 mod filter;
 mod flat_map;
+mod join;
 mod map;
 mod process;
 mod window;
 
+pub use self::join::{WindowCogroupOperator, WindowJoinOperator};
 pub use self::process::{CoProcessOperator, KeyedProcessOperator, ProcessOperator};
 pub use self::window::WindowOperator;
 pub use filter::FilterOperator;
