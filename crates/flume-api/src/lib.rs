@@ -8,6 +8,8 @@ mod connected;
 mod datastream;
 mod environment;
 pub mod functions;
+mod interval;
+mod join;
 pub mod sink;
 pub mod source;
 mod windowed;
@@ -17,6 +19,8 @@ pub use datastream::DataStream;
 #[cfg(feature = "prometheus")]
 pub use environment::init_metrics;
 pub use environment::{StreamExecutionEnvironment, init_logging};
+pub use interval::{BoundedIntervalJoinStream, IntervalJoinStream};
+pub use join::{JoinStream, WindowedJoinStream};
 pub use sink::{CollectSink, PrintSink};
 pub use source::{InMemorySource, TimestampedSource};
 pub use windowed::WindowedStream;

@@ -12,6 +12,8 @@ use tracing::{debug, info};
 
 use crate::connected::ConnectedStream;
 use crate::environment::StreamExecutionEnvironment;
+use crate::interval::IntervalJoinStream;
+use crate::join::JoinStream;
 use crate::windowed::WindowedStream;
 
 /// Internal representation of a DataStream's upstream input.
@@ -173,6 +175,24 @@ impl<'env, T: Send + 'static> DataStream<'env, T> {
         source: impl Source<U> + 'static,
     ) -> ConnectedStream<'env, T, U> {
         ConnectedStream::new(self, Box::new(source))
+    }
+
+    /// Join this stream with a second input source using windowed join.
+    /// Returns a [`JoinStream`] for configuring keys and windows.
+    pub fn window_join<U: Send + 'static>(
+        self,
+        source: impl Source<U> + 'static,
+    ) -> JoinStream<'env, T, U> {
+        JoinStream::new(self, Box::new(source))
+    }
+
+    /// Join this stream with a second input source using interval join.
+    /// Returns an [`IntervalJoinStream`] for configuring keys and bounds.
+    pub fn interval_join<U: Send + 'static>(
+        self,
+        source: impl Source<U> + 'static,
+    ) -> IntervalJoinStream<'env, T, U> {
+        IntervalJoinStream::new(self, Box::new(source))
     }
 
     /// Assign records to windows. Must be called after `key_by`.
