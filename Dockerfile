@@ -9,7 +9,7 @@
 #   docker build -t flume .
 
 # --- Build stage ---
-FROM rust:1.93.1-slim-bookworm@sha256:5b9332190bb3b9ece73b810cd1f1e9f06343b294ce184bcb067f0747d7d333ea AS builder
+FROM rust:1.95.0-slim-bookworm@sha256:5cad7981952984a5c222b6715e1ee282f9bd98ffc53e44e069f7153d49293104 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \
